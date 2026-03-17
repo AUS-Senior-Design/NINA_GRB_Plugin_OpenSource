@@ -1,0 +1,4 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code
+260315A,44036,26/03/17,12:07:57,175.69,deg,-1.90,deg,0.49,deg,,FERMI,2015-03-26,02:19:06,,,,,,,,,,,,,175.69,-1.9,0.49,260315
+260315A,44033,26/03/16,17:57:13,,,,,,,,OTHERS,,,02:10:46.630,02:27:26.630,,,,,,,,,,,,,,260315
+260315A,44026,26/03/16,13:05:38,,,,,,,,,,23:29:48,06:23:48,09:13:24,30.9,hours,after_trigger,,,,,,,19.94,,,,260315

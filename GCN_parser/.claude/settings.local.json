@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \":*)",
+      "Bash(dotnet build:*)",
+      "Read(//c/Users/qusai/Downloads/**)",
+      "Bash(python -c \":*)"
+    ]
+  }
+}

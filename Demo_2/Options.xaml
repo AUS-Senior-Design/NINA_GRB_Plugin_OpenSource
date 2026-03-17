@@ -1,0 +1,375 @@
+﻿<!--
+Created by: Insiyah Zujar
+Date: 22 Feb 2026
+Last Modified : 13 March 2026
+Modification: Added more options based on word doc
+-->
+    <ResourceDictionary
+    x:Class="Sd.NINA.Demo2.Options"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ninactrl="clr-namespace:NINA.CustomControlLibrary;assembly=NINA.CustomControlLibrary">
+    <!--  This data template will be displayed in N.I.N.A. on the options->plugin tab with the datacontext of the TestPlugin instance  -->
+    <!--  In order for this datatemplate to be picked correctly, the key has to follow the naming convention of <IPlugin.Name>_Options -->
+    <!--  Furthermore the Resource Dictionary has to be exported via code behind export attributes  -->
+    <DataTemplate x:Key="Demo_2_Options">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto" />
+                <ColumnDefinition Width="auto" />
+                <ColumnDefinition Width="auto" />
+                
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock 
+                Grid.Row="0"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Dec between" />
+            <StackPanel
+                Grid.Row="0"
+                Grid.Column="1"
+                Margin="10,0,0,0"
+                Orientation="Horizontal"
+                HorizontalAlignment="Left">
+            <ninactrl:UnitTextBox 
+                Margin="0,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding DecMin}"
+                Unit="deg" />
+            <TextBlock 
+                VerticalAlignment="Center"
+                Text=" and " />
+            <ninactrl:UnitTextBox 
+                Margin="0,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding DecMax}"
+                Unit="deg" />
+            </StackPanel>
+            
+            <TextBlock 
+                Grid.Row="1"
+                Grid.Column="0"            
+                VerticalAlignment="Center"
+                Text="Max. localization Uncertainty" />
+            <ninactrl:UnitTextBox 
+                Grid.Row="1"
+                Grid.Column="1"
+                Margin="10,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding MaxLocalUncertainty}"
+                ToolTip="Maximum allowed position uncertainty. Targets exceeding this value will be skipped."
+                Unit="arcmins" />
+
+            <TextBlock 
+                Grid.Row="2"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Observatory Code" />
+            <TextBox 
+                Grid.Row="2"
+                Grid.Column="1"
+                HorizontalAlignment="Left"
+                Width="70"
+                Margin="10,5,0,0"
+                ToolTip="Observatory code assigned by MPC. If left empty, Site longitude, latitude and elevation from N.I.N.A. configuration, will be used."
+                Text="{Binding ObservatoryCode}" />
+
+            <TextBlock 
+                Grid.Row="3"             
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="GRB Age less than "/>
+            <ninactrl:UnitTextBox 
+                Grid.Row="3"
+                Grid.Column="1"
+                Margin="10,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding GRB_age}"
+                ToolTip="Maximum allowed time since the GRB trigger (in hours). Older events will be ignored."
+                Unit="hours" />
+
+            <TextBlock 
+                Grid.Row="4"             
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Count Rate greater than"/>
+            <ninactrl:UnitTextBox 
+                Grid.Row="4"
+                Grid.Column="1"
+                Margin="10,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding CountRate}"
+                ToolTip="Filters time bins where the background-subtracted count rate exceeds the selected threshold (counts/s)."
+                Unit="counts/sec" />
+            <TextBlock
+                Grid.Row="4"
+                Grid.Column="2"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Text="(if not available ignore this parameter)"/>
+            
+            <TextBlock 
+                Grid.Row="5"             
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Flux greater than (erg/cm²/s)"/>
+            <StackPanel
+                Grid.Row="5"
+                Grid.Column="1"
+                Margin="10,0,0,0"
+                Orientation="Horizontal"
+                HorizontalAlignment="Left">
+            <ninactrl:UnitTextBox 
+                Margin="0,5,0,0"
+                Text="{Binding Flux_1}"
+                ToolTip="Filters intervals where the energy flux (erg/cm²/s) exceeds the selected threshold."
+                Unit="" />
+                <TextBlock 
+                VerticalAlignment="Center"
+                Text=" e " />
+                <ninactrl:UnitTextBox 
+                Margin="0,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding Flux_2}"
+                ToolTip="Filters intervals where the energy flux (erg/cm²/s) exceeds the selected threshold."
+                Unit="erg/cm²/s" />
+            </StackPanel>
+            <TextBlock
+                Grid.Row="5"
+                Grid.Column="2"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Text="(if not available ignore this parameter)"/>
+                
+
+            <TextBlock 
+                Grid.Row="6"             
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="SNR greater than"/>
+            <ninactrl:UnitTextBox 
+                Grid.Row="6"
+                Grid.Column="1"
+                Margin="10,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding SNR}"
+                ToolTip="Filters intervals where the signal-to-noise ratio (SNR) exceeds the selected threshold, highlighting statistically significant emission."
+                Unit="" />
+            <TextBlock
+                Grid.Row="6"
+                Grid.Column="2"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Text="(if not available ignore this parameter)"/>
+            
+            <TextBlock
+                Grid.Row="7"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Minimum Altitude"/>
+            <ninactrl:UnitTextBox 
+                Grid.Row="7"
+                Grid.Column="1"
+                Margin="10,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding Altitude}"
+                ToolTip="Minimum altitude (in degrees) the target must reach above the horizon to be considered observable."
+                Unit="° " />
+            <!-- We need to confirm magnitude & change observibility code
+            Insiyah: I thought the higher the magnitude the brighter the object however it turns out to be the opposite -->
+            <TextBlock
+                Grid.Row="8"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Maximum Magnitude"/>
+            <ninactrl:UnitTextBox 
+                Grid.Row="8"
+                Grid.Column="1"
+                Margin="10,5,0,0"
+                HorizontalAlignment="Left"
+                Text="{Binding Mag}"
+                ToolTip=" "
+                Unit="" />
+            
+            <TextBlock 
+                Grid.Row="9"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Profile Selected" />
+            <ComboBox
+                Grid.Row="9"
+                Grid.Column="1"                
+                Height="25"
+                MinWidth="70"
+                Margin="10,5,0,0"
+                IsEditable="False"
+                IsTextSearchEnabled="False"
+                ToolTip="Select which NINA profile to use. The profile determines the observer location, equipment, and other settings used by this plugin."
+                ItemsSource="{Binding AvailableProfiles}"
+                SelectedValue="{Binding SelectedProfile}">
+            </ComboBox>
+            
+            <TextBlock
+                Grid.Row="10"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Space Telescope"/>
+            <StackPanel
+                Grid.Row="10"
+                Grid.Column="1"
+                Margin="10,0,0,0"
+                Orientation="Horizontal"
+                HorizontalAlignment="Left">
+                <CheckBox Content="SWIFT"
+                          IsChecked="{Binding isSwift}"
+                          Style="{x:Null}"/>
+                <CheckBox Content="EP"
+                         IsChecked="{Binding isEP}"
+                         Style="{x:Null}"/>
+                <CheckBox Content="SVOM"
+                          IsChecked="{Binding isSVOM}"
+                          Style="{x:Null}"/>
+                <CheckBox Content="Fermi"
+                          IsChecked="{Binding isFermi}"
+                          Style="{x:Null}"/>
+                <CheckBox Content="Other"
+                          IsChecked="{Binding isOther}"
+                          Style="{x:Null}"/>
+            </StackPanel>
+        </Grid> 
+    </DataTemplate>
+</ResourceDictionary>
+
+<!--<TextBlock 
+                Grid.Row="4"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Expand inserted templates" />
+            <CheckBox
+                Grid.Row="4"
+                Grid.Column="1"
+                MinWidth="80"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Margin="0,5,0,0"
+                ToolTip="Control if new templates inserted on the sequencer are shown expanded or colapsed."
+                IsChecked="{Binding AutoExpandTemplates}" />
+            <TextBlock 
+                Grid.Row="5"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="V between" />
+            <StackPanel
+                Grid.Row="5"
+                Grid.Column="1"
+                Margin="10,0,0,0"
+                Orientation="Horizontal"
+                HorizontalAlignment="Left">
+                <ninactrl:UnitTextBox 
+                    Margin="0,5,0,0"
+                    HorizontalAlignment="Left"
+                    Text="{Binding MagBright}"
+                    Unit="mag" />
+                <TextBlock 
+                    VerticalAlignment="Center"
+                    Text=" and " />
+                <ninactrl:UnitTextBox 
+                    Margin="0,5,0,0"
+                    HorizontalAlignment="Left"
+                    Text="{Binding MagFaint}"
+                    Unit="mag" />
+            </StackPanel>
+
+            <TextBlock 
+                Grid.Row="6"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="Score between" />
+            <StackPanel
+                Grid.Row="6"
+                Grid.Column="1"
+                Margin="10,0,0,0"
+                Orientation="Horizontal"
+                HorizontalAlignment="Left">
+                <ninactrl:UnitTextBox 
+                    Margin="0,5,0,0"
+                    HorizontalAlignment="Left"
+                    Text="{Binding ScoreLow}"
+                    Unit="%" />
+                <TextBlock 
+                    VerticalAlignment="Center"
+                    Text=" and " />
+                <ninactrl:UnitTextBox 
+                    Margin="0,5,0,0"
+                    HorizontalAlignment="Left"
+                    Text="{Binding ScoreHigh}"
+                    Unit="%" />
+            </StackPanel>-->
+
+<!--            <TextBlock 
+                Grid.Row="8"
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Text="NEO target prefix" />
+    <TextBox 
+                Grid.Row="8"
+                Grid.Column="1"
+                HorizontalAlignment="Left"
+                Width="70"
+                Margin="10,5,0,0"
+                ToolTip="The name used for the template clones inserted on the sequencer."
+                Text="{Binding TargetPrefix}" /> -->
+    
+           <!--<TextBlock 
+                Grid.Row="2"
+                Grid.Column="0"
+                Text="Sensor area used"
+                VerticalAlignment="Center" />
+            <StackPanel
+                Grid.Row="2"
+                Grid.Column="1"
+                Margin="4,0,0,0"
+                Orientation="Horizontal"
+                HorizontalAlignment="Left">
+                <Slider 
+                VerticalAlignment="Center"
+                IsSnapToTickEnabled="True"
+                Maximum="1.20"
+                Minimum="0.50"
+                TickFrequency="0.05"
+                ToolTip="Percentaje of the dimensions of the sensor used to compute the maximum integration time"
+                Value="{Binding SensorAreaUsage, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock
+                Margin="5,0,0,0"    
+                VerticalAlignment="Center"
+                Text="{Binding SensorAreaUsage, Mode=OneWay, Converter={StaticResource PercentageConverter}}" />
+                <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" Text="%" />
+            </StackPanel>-->
+
+<!--<TextBlock 
+    Grid.Row="7"
+    Grid.Column="0"
+    VerticalAlignment="Center"
+    Text="Force skip on failure" />
+<CheckBox
+    Grid.Row="7"
+    Grid.Column="1"
+    MinWidth="80"
+    HorizontalAlignment="Left"
+    VerticalAlignment="Center"
+    Margin="0,5,0,0"
+    ToolTip="When the UpdateNEOEphemerides fails, it's not safe to keep with the old data. You can force this &quot;skip on failure&quot; to avoid wasting observation time."
+    IsChecked="{Binding ForceSkipOnFailure}" />-->

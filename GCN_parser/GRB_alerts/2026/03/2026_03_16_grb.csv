@@ -1,0 +1,7 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code
+260316A,44035,26/03/17,09:51:41,,,,,,,,OTHERS,2016-03-16,17:12:53,,,,,,524,,,,,,,,,,260316
+260316a,44034,26/03/17,08:21:17,226.9819,deg,27.4455,deg,10,arcsec,,EP,2026-03-16,12:32:52,,,168,seconds,after_trigger,,,,,,,,226.9819,27.4455,0.002777777777777778,260316
+260316a,44032,26/03/16,17:46:14,,,,,3,arcmin,,EP,,12:33:04,16:18:40,16:37:50.536,3.76,hours,after_trigger,,,,,,,22.0,,,0.05,260316
+260316A,44031,26/03/16,17:23:26,305.5,deg,-79.3,deg,3.2,deg,,FERMI,2026-03-16,17:12:52,,,,,,,,,,,,,305.5,-79.3,3.2,260316
+260316a,44030,26/03/16,17:12:28,,,,,20,arcsec,,EP,,12:33:12,14:11:00,,1.63,hours,after_trigger,,,,,,,23.2,,,0.005555555555555556,260316
+260316A,44029,26/03/16,17:06:07,,,,,,,,FERMI,2026-03-16,12:33:13,,,,,,,,,,,,,,,,260316

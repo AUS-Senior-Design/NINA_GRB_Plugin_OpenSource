@@ -1,0 +1,10 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,error_message
+,,,,,,,,,,,,,,,,,,,,,,,,,,expected string or bytes-like object
+,44011,26/03/15,02:40:16,11h 42m 40.32s,hms,-01d 53m 06.0s,daa,0.71,deg,-42.8,,2026-03-15,02:22:50,,,105,seconds,after_trigger,,,,,,,20.4,expected string or bytes-like object
+,44009,26/03/15,01:07:35,,,,,,,,EP,,,,,50,minutes,after_trigger,,,,,,,21.5,expected string or bytes-like object
+,44007,26/03/14,18:19:35,,,,,,,,FERMI,2026-03-14,12:48:28.23,,,,,,,,,,,,,expected string or bytes-like object
+GRB 260310A/AT 2026fgk,44005,26/03/14,15:23:56,,,,,0.5,mJy/beam,,FERMI,,,23:20:06,,,,,,,,,,,,Unsupported error unit: mJy/beam
+,,,,,,,,,,,,,,,,,,,,,,,,,,expected string or bytes-like object
+,43988,26/03/13,12:49:55,,,,,,,,SWIFT,,,,,,,,,,,,,,,expected string or bytes-like object
+GRB 20260310A/AT2026fgk,43986,26/03/13,11:30:56,,,,,,,,,,,06:02:23.850,,,,,,,,,,,,unconverted data remains: 03
+,43985,26/03/13,11:28:17,,,,,,,,SWIFT,,,,,,,,,,,,,,,expected string or bytes-like object
