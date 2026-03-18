@@ -17,11 +17,11 @@ def get_firestore_client():
     return firestore.client()
 
 #utility function to delete all records grb_alerts
-def clear_grb_alerts():
+def clear_grb_alerts(collection_name):
     db = get_firestore_client()
-    for doc in db.collection("grb_alerts").stream():
+    for doc in db.collection(collection_name).stream():
         doc.reference.delete()
-    print("Cleared all records from grb_alerts collection")
+    print(f"Cleared all records from {collection_name} collection")
 
 #utility function to get all objects from any collection filtered by a specific field and value
 def get_grb_by_field(field, field_value, collection_name = "grb_alerts"):
