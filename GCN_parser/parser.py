@@ -643,48 +643,28 @@ parsed = {'GRB_name': 'GRB 260223A',
  'date_code': '260223'}
 
 # %%
-# Merge alerts into a single record per GRB,
-# combining information from multiple emails if needed.
-
-def update_record(existing_record, new_data):
-    """
-    Update an existing Firestore record with new data, giving precedence to non-null values in new_data.
-    """
-    updated_data = existing_record.to_dict()  # Get existing data as a dict
-
+def update_record(existing_doc_id, existing_dict, new_data):
+    updated_data = {**existing_dict}  # copy existing
     for key, value in new_data.items():
         if value is not None:
-            updated_data[key] = value  # Update with new value if it's not null
-        # continue logic for fields that have diff values
-        
-    # Now update the Firestore document with the merged data
-    existing_record.reference.update(updated_data)
-    print(f"Updated Firestore record: {existing_record.id}")
+            updated_data[key] = value
+
+    db = get_firestore_client()
+    db.collection("final_grb_alert").document(existing_doc_id).update(updated_data)
+    print(f"Updated Firestore record: {existing_doc_id}")
 
 def merge_alert(parsed_raw_alert):
-
-    # read date_code in parsed_raw_alert and check if this code exists in the firebase collection
-
     grb_name = parsed_raw_alert["GRB_name"]
+    existing_records = get_grb_by_field("GRB_name", grb_name, collection_name="final_grb_alert")
 
-    # if it exists, merge the new alert with the existing one, giving precedence to non-null values in the new alert, and update the record in firebase.
-    # If it does not exist, simply push the new alert to firebase.
-    existing_record = get_grb_by_field("GRB_name", grb_name, collection_name="final_grb_alert")
-
-    if existing_record is not None and len(existing_record) > 0:
-        print(
-            f"GRB with date code {grb_name} already exists in final_grb_alert.\nMerging and updating."
-        )
-        # Implementation for merging and updating existing record
-        update_record(existing_record, parsed_raw_alert)
-        
+    if existing_records:
+        print(f"GRB: {grb_name} already exists in final_grb_alert.\nMerging and updating.")
+        existing = existing_records[0]          # always one record per GRB
+        doc_id = existing.pop("id")             # extract the doc ID
+        update_record(doc_id, existing, parsed_raw_alert)
     else:
-        print(
-            f"GRB with date code {grb_name} does not exist in final_grb_alert.\nPushing new record."
-        )
-        
-        final_grb_alert = parsed_raw_alert
-        push_grb_to_firestore(final_grb_alert, "final_grb_alert")
+        print(f"GRB: {grb_name} does not exist in final_grb_alert.\nPushing new record.")
+        push_grb_to_firestore(parsed_raw_alert, "final_grb_alert")
 
 # %% [markdown]
 # # Entry Point Function
