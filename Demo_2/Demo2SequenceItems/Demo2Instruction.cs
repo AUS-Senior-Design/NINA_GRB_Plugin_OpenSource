@@ -64,8 +64,9 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
         [ImportingConstructor]
         public Demo2Instruction() {
             //Text = Settings.Default.DecUp;
-            Text = "Success";
+            Text = "Are mu changes showing";
             DecMin = Settings.Default.DecMin;
+            DecMax = Settings.Default.DecMax;   
         }
         public Demo2Instruction(Demo2Instruction copyMe) : this() {
             CopyMetaData(copyMe);
@@ -82,6 +83,9 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
 
         [JsonProperty]
         public double DecMin { get; set;  }// DecMin
+
+        [JsonProperty]
+        public double DecMax { get; set; }// DecMax
 
         /// <summary>
         /// The core logic when the sequence item is running resides here

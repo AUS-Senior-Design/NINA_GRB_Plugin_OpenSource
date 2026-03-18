@@ -47,6 +47,8 @@ namespace Sd.NINA.Demo2 {
                 CoreUtil.SaveSettings(Settings.Default);
             }
 
+            //This is the constructor of your Demo2 plugin class — it runs once when NINA loads your plugin.
+
             this.pluginSettings = new PluginOptionsAccessor(profileService, Guid.Parse(this.Identifier));
             this.profileService = profileService;
 
@@ -69,6 +71,9 @@ namespace Sd.NINA.Demo2 {
 
             grbListener = new FirestoreGrbListener();
             grbListener.SetObservabilityService(observabilityService);   // attach before Start()
+            //Insiyah: To get lat and long which is used in PostObservableAlertAsync
+            grbListener.SetProfileService(profileService);
+            //----------------------------------------------------------------------------
             grbListener.Start(serviceAccountPath);
             FirestoreCapturePoster.Initialize(serviceAccountPath);
         }

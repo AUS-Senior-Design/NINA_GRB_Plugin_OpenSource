@@ -31,7 +31,12 @@
                         Margin="5,0,0,0"
                         Text="{Binding DecMin}"
                         TextAlignment="Right"/>
-                 
+                    <TextBox
+                        MinWidth="40"
+                        Margin="5,0,0,0"
+                        Text="{Binding DecMax}"
+                        TextAlignment="Right"/>
+
                 </StackPanel>
             </nina:SequenceBlockView.SequenceItemContent>
         </nina:SequenceBlockView>

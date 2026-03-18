@@ -2,6 +2,7 @@ using Google.Apis.Auth.OAuth2;
 using Newtonsoft.Json.Linq;
 using NINA.Core.Utility;
 using NINA.Core.Utility.Notification;
+using NINA.Profile.Interfaces;
 using Sd.NINA.Demo2.Models;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Sd.NINA.Demo2.Properties;
+
 
 namespace Sd.NINA.Demo2.Services {
     /// <summary>
@@ -28,6 +31,10 @@ namespace Sd.NINA.Demo2.Services {
         // Set from Demo2.cs after the listener is created
         private GRBObservabilityService _observabilityService;
 
+        //Insiyah: To insert profile lat and long--------
+        private IProfileService _profileService;
+        //------------------------------------------------
+
         public FirestoreGrbListener() { }
 
         /// <summary>
@@ -38,6 +45,14 @@ namespace Sd.NINA.Demo2.Services {
             _observabilityService = service;
             Logger.Info("[GRB Listener] Observability service attached.");
         }
+
+        // Insiyah : To get lat and long setting up service-----------
+        public void SetProfileService(IProfileService profileService) {
+            _profileService = profileService;
+            Logger.Info("[GRB Listener] Profile service attached.");
+        }
+
+        //--------------------------------------------------------------
 
         public void Start(string serviceAccountPath) {
             if (!File.Exists(serviceAccountPath)) {
@@ -90,7 +105,7 @@ namespace Sd.NINA.Demo2.Services {
             string accessToken = await _credential.UnderlyingCredential
                 .GetAccessTokenForRequestAsync(cancellationToken: token);
             string url = "https://firestore.googleapis.com/v1/projects/" + _projectId
-                       + "/databases/(default)/documents/grb_alerts?pageSize=20";
+                       + "/databases/(default)/documents/grb_alerts?pageSize=40";
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var response = await httpClient.SendAsync(request, token);
@@ -151,6 +166,17 @@ namespace Sd.NINA.Demo2.Services {
                     Logger.Info($"[GRB Listener] {grb.Name} is OBSERVABLE.{windowStr}");
                     Notification.ShowInformation($"GRB {grb.Name} is observable!{windowStr}");
 
+                    // Insiyah: If observable we are storing the grb event, observable window, site_lat and site_long, MPC
+                    _ = FirestoreCapturePoster.PostObservableAlertAsync(
+                            grb,
+                            obsResult,
+                            _profileService.ActiveProfile.AstrometrySettings.Latitude,
+                            _profileService.ActiveProfile.AstrometrySettings.Longitude,
+                            Settings.Default.ObservatoryCode
+                        );
+                    //--------------------------------------------------------------
+
+
                 } else {
                     // No observability service attached — queue all alerts (testing mode)
                     Logger.Warning("[GRB Listener] No observability service set — queuing without check.");
@@ -160,6 +186,9 @@ namespace Sd.NINA.Demo2.Services {
                 // ── Queue for capture ────────────────────────────────────────────
                 GRBPendingState.PendingGrb = grb;
                 Logger.Info($"[GRB Listener] {grb.Name} stored in GRBPendingState.");
+
+                
+
             }
         }
 

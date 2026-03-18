@@ -28,8 +28,7 @@ namespace Sd.NINA.Demo2.Services {
             this.longitude = longitude;
         }
 
-        [JsonProperty]
-        public double DecMin { get; set; }
+
 
         /*
 
@@ -49,9 +48,25 @@ namespace Sd.NINA.Demo2.Services {
 
         */
 
-        // Just for the time being in the options
+        double minAlt = 10;                  // was 25 — near-horizon observing
+        double startAlt = 10;                // was 30 — match minAlt so window can always start
+        double decMin = -60;                 // was -40 — more southern sky
+        double decMax = 90;
+        double maxLocalUncertainty = 10.0;   // was 0.5 — accept poorly localized GRBs
+        double grbMaxAge = 500;              // was 20 — effectively disabled
+        double countRateThreshold = 0;       // was 3000 — accept any count rate
+        double flux1 = 1.0;
+        int flux2 = -15;                     // was -9 — threshold now 1e-15, extremely faint
+        double maxMag = 25;                  // was 20 — accept very faint optical counterparts
+        double snrThreshold = 1;             // was 5 — accept almost any signal
+        double minObsWindowHours = 0.1;      // was 0.5 — 6 minute minimum window
+
+
+        // Insiyah: I need to add start ALT and min Obs Window into options
+
+        /*
         double minAlt = Settings.Default.Altitude;           // minimum altitude during window (degrees)
-        double startAlt = 30;         // minimum altitude at window START (degrees)
+        double startAlt = 20;         // minimum altitude at window START (degrees)
         double decMin = Settings.Default.DecMin;
         double decMax = Settings.Default.DecMax;
         double maxLocalUncertainty = Settings.Default.MaxLocalUncertainty;
@@ -61,7 +76,9 @@ namespace Sd.NINA.Demo2.Services {
         int flux2 = Settings.Default.Flux_2;               // flux threshold = 1.0e-9 erg/cm²/s
         double maxMag = Settings.Default.Mag;
         double snrThreshold = Settings.Default.SNR;
-        double minObsWindowHours = 0.5;  // minimum observable window duration
+        double minObsWindowHours = 0.25;  // minimum observable window duration og : 0.5
+
+        */
 
         // Accepted space telescopes — only process alerts from these
         readonly HashSet<string> allowedTelescopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
@@ -73,10 +90,10 @@ namespace Sd.NINA.Demo2.Services {
 
 
         // should we add these in options too?
-        double astroTwilight = -16.0;   // Sun altitude in degrees
-        double maxMoonAlt = 65.0;       // Max moon altitude allowed
-        double minMoonSep = 45.0;       // Min angular distance between Moon and GRB
-        double maxMoonPhase = 40.0;     // Percent illumination *-* its 40.0
+        double astroTwilight = -6.0;   // Sun altitude in degrees *-* og: -16
+        double maxMoonAlt = 90.0;       // Max moon altitude allowed *-* og:65
+        double minMoonSep = 5.0;       // Min angular distance between Moon and GRB *-* og:45
+        double maxMoonPhase = 100.0;     // Percent illumination *-* og: 40.0
         // changed it to 100 for testing purposes
 
         public GRBObservabilityResult Evaluate(GRBEvent grb) {
