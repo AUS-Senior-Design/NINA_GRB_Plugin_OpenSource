@@ -223,6 +223,204 @@ GCN Circular email text:
 >>>
 """
 
+# Tweaked Prompt
+USER_PROMPT_TEMPLATE_2 = """
+Extract the following fields from the GCN Circular email below.
+
+Rules:
+- Use ONLY information explicitly present in the text.
+- Do NOT infer missing values.
+- Do NOT compute astrophysical quantities
+- The ONLY calculations allowed are unit conversions specified below.
+- If a value is missing or ambiguous, return NULL.
+- If multiple values exist, choose the most relevant to the event trigger.
+- Output JSON only, no commentary.
+
+Expected input units: 
+- uncertainty/ error -> arcmin or deg or arcsec
+- Flux →  exactly** "erg cm^-2 s^-1" , if the unit is not complete, flux is null
+- RA → "hms" or "daa" or "deg".
+- Dec → "hms" or "daa" or "deg".
+-fluence -> "erg cm^-2"
+
+Fields to extract:
+
+{{
+  "GRB_name": null or string,
+  "GCN_number": null or number, #this is the "NUMBER: " field under "TITLE" in the email header
+  "email_date": date or null ,
+  "email_time": time or null,
+  "ra": null or string,
+  "ra_unit": null or string,
+  "dec": null or string,
+  "dec_unit": null or string
+  "error": null or number,
+  "error_unit": string or null,
+  "altitude_degrees": null or number,
+  "space_telescope": null or one of ["SWIFT", "EP", "SVOM", "FERMI", "OTHERS"],
+  "trigger_date": date or null,
+  "trigger_time_utc": time or null,
+  "obs_start_time_utc" : time or null,
+  "obs_end_time_utc": time or null,
+  "trigger_offset_value": time or null,
+  "trigger_offset_unit": time or null,
+  "trigger_offset_relation": time or null,
+  "peak_count_per_sec": null or number,
+  "flux": null or number,
+  "flux_unit" : string or null, 
+  "fluence" : string or null,
+  "fluence_unit": string or null,
+  "snr": null or number,
+  "magnitude": null or number
+}}
+
+Important extraction notes:
+The GCN_number, GRB_name, email_date, and email_time are in the header. DO NOT CHANGE the email_date format, keep it AS IT IS
+DO NOT ADD GMT in the email time
+The email date and time are NOT the trigger time
+The trigger date can be formatted as date
+- RA/Dec may appear as hh:mm:ss, degrees, or J2000 coordinates — preserve the first encountered original format.
+-Task: Given text containing RA: and/or Dec: values, identify the ra_unit and dec_unit.
+Input:
+Plain text. Ignore labels like (J2000.0).
+Output:
+Return only JSON, with keys when present:
+ra_unit
+dec_unit
+Allowed values (strings only):
+"deg" — decimal degrees OR
+"hms" — hours-minutes-seconds  OR
+"daa" — degrees-arcminutes-arcseconds 
+
+RA unit and Dec unit Rules:
+"hms" if it contains h m s or colon-separated time (hh:mm:ss); 
+"daa" if it contains d ' " or colon-separated angles (dd:mm:ss); 
+else "deg".
+
+Example:
+
+RA: 06:38:28.55
+Dec: -13d 46' 27.4"
+{{"ra_unit": "hms",
+"dec_unit":"daa"
+}}
+
+Position Error Extraction Rules (VERY IMPORTANT):
+
+- "error" refers ONLY to positional / localization uncertainty of the GRB in the sky.
+
+- ONLY extract error if it is clearly associated with sky position, such as:
+  - "error radius"
+  - "position uncertainty"
+  - "localization uncertainty"
+  - uncertainty attached to RA/Dec coordinates
+
+- The error MUST be an angular quantity describing sky location.
+
+Valid units:
+- "arcsec"
+- "arcmin"
+- "deg"
+
+STRICTLY DO NOT extract error from:
+- photometric uncertainties (e.g., "r = 20.63 ± 0.04")
+- time-related values (e.g., "T90 = 13 ± 4 s", "180 s exposure")
+- flux or fluence uncertainties (e.g., "(7.7 ± 0.9)E-06 erg cm^-2")
+- any value with units of seconds, minutes, hours, or magnitudes
+
+- If the uncertainty is NOT explicitly tied to sky position, return:
+  error = null
+  error_unit = null
+
+- If multiple uncertainties exist, ONLY select the one describing positional uncertainty.
+
+
+- ONLY extract flux if the unit **exactly** matches "erg cm^-2 s^-1" (including s^-1 for per second).  
+- Do NOT infer flux from any other unit (e.g., "erg cm^-2" or "ph/s/cm^2").  
+- If "erg cm^-2 s^-1" is not present in the text, set flux = null and flux_unit = null.
+Do NOT convert fluence or other energy quantities into flux. 
+Only report a value if the text explicitly gives it in "erg cm^-2 s^-1".
+Only consider numbers that are **immediately next to the exact string** "erg cm^-2 s^-1".  
+Ignore all other numbers, including "erg cm^-2" or "ph/s/cm^2".
+
+
+
+  
+Extraction Rules for Fluence:
+
+1. ONLY extract numeric values **explicitly associated** with one of the valid fluence units:
+   - Energy fluence: "erg cm^-2", "J m^-2", "keV cm^-2"
+   - Photon/particle fluence: "ph cm^-2", "counts cm^-2"
+   - Differential fluence (optional): "erg cm^-2 keV^-1", "ph cm^-2 keV^-1"
+
+2. **Ignore uncertainties or error ranges** (e.g., "± 0.1") — only extract the main numeric value.  
+   - Example: from "3.2 ± 0.1 erg/cm²", extract `3.2`.
+
+3. ONLY extract numeric values **with the exact unit**.  
+   - Do not infer from flux units or per-second quantities.  
+   - If the correct unit is not present, set:
+     ```
+     fluence = null
+     fluence_unit = null
+     ```
+
+Trigger Time Extraction Policy (CRITICAL):
+
+- If an explicit trigger time or trigger date+time is stated in the text
+  (e.g., "triggered at 04:11 UTC", "T0 = 13:12:10.83 UT"),
+  extract trigger_date and trigger_time_utc directly.
+
+- Do NOT compute trigger_time_utc from relative offsets.
+
+- If the trigger time is NOT explicitly stated, extract:
+  - obs_start_time_utc (earliest observation time)
+  - obs_end_time_utc (latest observation time, if present)
+  - trigger_offset_value (earliest offset value only)
+  - trigger_offset_unit ("minutes" or "hours")
+  - trigger_offset_relation ("after_trigger")
+
+- In the relative-offset case, set:
+  trigger_date = null
+  trigger_time_utc = null
+  
+  Relative Trigger Offset Rules:
+
+Treat the following phrases as valid trigger offsets:
+- "T+X minutes after the trigger"
+- "X minutes after the trigger"
+- "T+X hours after the trigger"
+- "X hours after the trigger"
+- "from X to Y minutes after the trigger"
+- "from X to Y hours after the trigger"
+
+If a range is given, extract the earliest value (X).
+
+Exclusivity Rule:
+
+If trigger_time_utc is extracted, ALL of the following MUST be null:
+- obs_start_time_utc
+- obs_end_time_utc
+- trigger_offset_value
+- trigger_offset_unit
+- trigger_offset_relation     
+
+- Altitude should ONLY be extracted if explicitly stated as altitude or elevation.
+- Space_Telescope:
+  - SWIFT → Swift, Swift-XRT, BAT, UVOT
+  - FERMI → Fermi, Fermi-GBM, LAT
+  - EP → Einstein Probe
+  - SVOM → SVOM, GRM, ECLAIRs
+  - OTHERS → IceCube, GECAM, MAXI, or anything else
+- Optical magnitude includes detections or upper limits.
+- If multiple optical magnitudes exist, return the most constraining (deepest).
+- Do NOT average or combine values.
+
+GCN Circular email text:
+<<<
+{text}
+>>>
+
+"""
 # %% [markdown]
 # ## LLM calling functions
 
@@ -287,9 +485,9 @@ def call_gpt(prompt: str) -> str:
     )
     return response.choices[0].message.content
 
-
+# Changed Prompt
 def parse_grb_circular_gpt(text: str):
-    prompt = USER_PROMPT_TEMPLATE.format(text=text)
+    prompt = USER_PROMPT_TEMPLATE_2.format(text=text)
     data = extract_json(call_gpt(prompt))
     # return GRBData(**data)
     return data
@@ -505,7 +703,10 @@ def compute_trigger_time(llm_output):
         f"{trigger_date} {obs_start_time_utc}", f"%Y-%m-%d {obs_fmt}"
     )
 
-    if trigger_offset_unit == "minutes":
+    # Change 1: Added seconds
+    if trigger_offset_unit == "seconds":
+        delta = timedelta(seconds=float(trigger_offset_value))
+    elif trigger_offset_unit == "minutes":
         delta = timedelta(minutes=float(trigger_offset_value))
     elif trigger_offset_unit == "hours":
         delta = timedelta(hours=float(trigger_offset_value))
