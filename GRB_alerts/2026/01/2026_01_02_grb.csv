@@ -1,0 +1,3 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code
+260102a,43298,26/01/02,06:48:54,,,,,,,,SWIFT,,,,,,,,,,,,,,,,,,260102
+260102a,43295,26/01/02,04:43:22,12h15m31.28s,hms,48d15m29.77s,daa,5.09,arcmin,,SVOM,2026-01-02,04:10:03,04:09:45,,,,,16.44,,,,,16.44,,183.88033333333334,48.258269444444444,0.08483333333333333,260102

@@ -1,0 +1,7 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code
+260312a,43965,26/03/12,03:17:24,07h 11m 30s,hms,"+22d 46' 00""",daa,2,arcmin,30,SWIFT,,02:57:00,03:05:12,,492,seconds,after_trigger,4500,,,,,,,107.87500000000001,22.766666666666666,0.03333333333333333,260312
+260312a,43965,26/03/12,03:17:24,07h 11m 30s,hms,"+22d 46' 00""",daa,2,arcmin,30,SWIFT,,02:57:00,03:05:12,,492,seconds,after_trigger,4500,,,,,,,107.87500000000001,22.766666666666666,0.03333333333333333,260312
+260312a,43965,26/03/12,03:17:24,07h 11m 30s,hms,"+22d 46' 00""",daa,2,arcmin,30,SWIFT,26/03/12,02:57:00,03:05:12,,492,seconds,after_trigger,4500,,,,,,,107.87500000000001,22.766666666666666,0.03333333333333333,260312
+260312a,43966,26/03/12,04:02:11,07h 11m 30s,hms,"+22d 46' 00""",daa,4,deg,,FERMI,,,,,,,,,,,3.2,erg cm^-2,12.4,,107.87500000000001,22.766666666666666,4.0,260312
+260312a,43966,26/03/26,04:02:11,07h 11m 30s,hms,"+22d 46' 00""",daa,4,deg,,FERMI,,,,,,,,,,,3.2,erg cm^-2,12.4,,107.87500000000001,22.766666666666666,4.0,260312
+260312a,43965,26/03/12,03:17:24,09h 24m 55s,hms,"-55d 48' 43""",daa,3,arcmin,,SWIFT,,02:57:00,,,,,,500,,,,,9.4,,141.22916666666666,-55.81194444444444,0.05,260312

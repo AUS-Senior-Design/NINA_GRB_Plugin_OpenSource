@@ -1,0 +1,30 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,error_message
+,,Fri 02 Jan 26,09:49:35 UT,183.879d,deg,+48.259d,deg,,,,SWIFT,,,,,,,,,,,,,,,could not convert string to float: '183.879d'
+,,Fri 02 Jan 26,09:49:27 UT,205.261d,deg,-28.126d,deg,,,,SWIFT,,,,,,,,,,,,,,,could not convert string to float: '205.261d'
+GRB 260102A,21896,Fri 02 Jan 26,09:47:07 UT,183.880d,deg,+48.258d,daa,0.0,arcsec,,SWIFT,,,,,,,,,,,,,,,could not convert string to float: '183.880d'
+,,Fri 02 Jan 26,09:40:25 UT,115.253d,deg,+16.556d,deg,,,,SWIFT,,,,,,,,,,,,,,,could not convert string to float: '115.253d'
+,,,,,,,,,,,,,,,,,,,,,,,,,,"expected string or bytes-like object, got 'NoneType'"
+EP260101a,43288,26/01/01,07:02:51,46.0605 deg,deg,39.4380 deg,deg,20,arcsec,,EP,2026-01-01,06:35:42,,,,,,,,,,,,,could not convert string to float: '46.0605 deg'
+GRB 260101A,43287,26/01/01,03:32:50,,,,,,,,FERMI,,,02:13:40.010,02:21:06.010,1.286,hours,after_trigger,,,,,,,18.05,unconverted data remains: .010
+GRB 260101A,43285,26/01/01,01:13:39,05h 45m 51s,hms,"+63d 34' 06""",daa,3,arcmin,,SWIFT,,,00:57:54.9,,84.7,seconds,after_trigger,7000,,,,,,16.03,unconverted data remains: .9
+,1429608,Thu 01 Jan 26,01:07:02,86.4288d,deg,+63.5922d,deg,0.6,arcsec,,SWIFT,,,,,,,,,,,,,,16.03,could not convert string to float: '86.4288d'
+,1429608,Thu 01 Jan 26,00:59:51,86.456d,deg,+63.565d,deg,,,,SWIFT,,,00:57:57.63,00:59:43.18,,,,,,,,,,,could not convert string to float: '86.456d'
+,1429608,Thu 01 Jan 26,00:58:02,86.459d,deg,+63.563d,deg,0.0,arcsec,,SWIFT,,,00:57:54.96,,84.7,seconds,after_trigger,,,,,,,,could not convert string to float: '86.459d'
+,1429608,Thu 01 Jan 26,00:57:04,86.465d,deg,+63.568d,deg,,,,SWIFT,,,,,,,,,,,,,,,could not convert string to float: '86.465d'
+,1429608,Thu 01 Jan 26,00:56:57,86.465d,deg,+63.568d,deg,,,,SWIFT,21041-01-01,00:56:30.30,,,,,,,,,,,13.34,,could not convert string to float: '86.465d'
+,1429608,Thu 01 Jan 26,00:56:44,86.465d,deg,+63.568d,deg,3.0,arcmin,,SWIFT,,,,,,,,,,,,,,,could not convert string to float: '86.465d'
+,1429608,Thu 01 Jan 26,00:56:43,86.465d,deg,+63.568d,deg,3.0,arcmin,,SWIFT,,,,,,,,,,,,,13.34,,could not convert string to float: '86.465d'
+PM J11474+6644,43247,25/12/28,01:29:14,,,,,,,,EP,2025-12-27,16:37:01,,,,,,,1.8,erg cm^-2 s^-1,,,,,"strptime() argument 1 must be str, not None"
+,3000348,Sat 27 Dec 25,08:16:32 UT,172.318d,deg,+20.586d,daa,0.0,arcsec,,SWIFT,25/12/27,08:16:26.00,,,,,,,,,,,,,could not convert string to float: '172.318d'
+,3000348,Sat 27 Dec 25,08:16:27,172.318d,deg,+20.586d,deg,0,arcsec,,SWIFT,21036,08:16:26.00,,,,,,,,,,,,,could not convert string to float: '172.318d'
+,3000348,Fri 26 Dec 25,14:08:20 UT,172.318d,deg,+20.586d,deg,0.0,arcsec,,SWIFT,25/12/26,14:08:19.00,,,,,,,,,,,,,could not convert string to float: '172.318d'
+G 177-25,43241,25/12/26,03:59:58,,,,,,,,EP,2025-12-26,02:55:13,,,,,,,,,,,,,"strptime() argument 1 must be str, not None"
+,43240,25/12/26,00:39:34,19h 49m 58.80s,hms,+22d 27m 50.4s,daa,0.51,deg,-11.8,,2025-12-25,23:48:34,,,12800,sec,after_trigger,,,,,,,15.5,"expected string or bytes-like object, got 'NoneType'"
+,43239,25/12/25,22:27:35,297.42,deg,22.47,deg,0.54,deg,,OTHERS,25-12-25,20:14:06.80,,,,,,,,,,,,,"expected string or bytes-like object, got 'NoneType'"
+,43238,25/12/25,16:54:22,,,,,,,,FERMI,2025-12-25,15:06:43.51,,,,,,,,,,,,,"expected string or bytes-like object, got 'NoneType'"
+,3000346,Wed 24 Dec 25,15:52:57,172.318d,deg,+20.586d,deg,0,arcsec,,SWIFT,,,,,,,,,,,,,,,could not convert string to float: '172.318d'
+GRB 251205A,43231,25/12/24,12:30:36,,,,,,,,SWIFT,,,10.6h,,10.6,hours,after_trigger,,,,,,,18.35,time data '2025-12-05 10.6h' does not match format '%Y-%m-%d %H:%M'
+GRB 251222A,43230,25/12/24,11:20:29,,,,,0.18,mag,,FERMI,,,18:16:00,,1,days,after_trigger,,,,,,,20.46,Unsupported error unit: mag
+GRB 251129A,43228,25/12/24,10:46:36,14:57:18.867,hms,+79:17:34.74,daa,0.044,s,,EP,2025-11-29,02:32:05,,,,,,,,,,,,,Unsupported error unit: s
+GRB 251222A,43226,25/12/24,08:57:11,,,,,0.08,mag,,FERMI,,,21:15,,0.173,days,after_trigger,,,,,,,19.14,Unsupported error unit: mag
+EP251220a,43221,25/12/23,18:19:15,,,,,0.2,mag,,EP,,,20:32:36,,2.5,days,after_trigger,,,,,,,22.55,Unsupported error unit: mag

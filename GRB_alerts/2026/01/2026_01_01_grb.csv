@@ -1,0 +1,11 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code
+260101a,43297,26/01/02,05:59:57,,,,,,,,FERMI,2026-01-01,00:56:30,,,,,,,,,6.7,erg cm^-2,,,,,,260101
+260101a,43296,26/01/02,04:56:23,46.0631,deg,39.4376,deg,10,arcsec,,EP,2026-01-01,06:31:46,06:38:27,11:08:28,7,minutes,after_trigger,,,,,,,,46.0631,39.4376,0.002777777777777778,260101
+260101a,43294,26/01/02,04:42:19,,,,,,,,OTHERS,2026-01-01,00:56:34,,,,,,,,,,,,,,,,260101
+260101a,43293,26/01/01,21:05:21,,,,,,,,FERMI,,00:56:54,01:43:54,,47,minutes,after_trigger,,,,,,,17.3,,,,260101
+260101a,43292,26/01/01,14:35:47,89.43,deg,63.59,deg,,,,SVOM,2026-01-01,00:56:37,,,,,,,8.99,erg cm^-2 s^-1,8.10,erg cm^-2,,,89.43,63.59,,260101
+260101a,43291,26/01/01,12:11:45,,,,,0.17,,,SWIFT,,,,,,,,0.0039,1.5e-13,erg cm^-2 s^-1,,,1.8,,,,,260101
+260101a,43290,26/01/01,10:38:30,,,,,,,,SWIFT,2026-01-01,10:31:22,,,34465,sec,after_trigger,,,,,,,17.4,,,,260101
+260101a,43289,26/01/01,07:52:37,05h 45m 42.96s,hms,"+63d 35' 32.6""",daa,2.4,arcsec,,SWIFT,,,,,,,,,,,,,,,86.429,63.59238888888889,0.0006666666666666666,260101
+260101a,43286,26/01/01,03:09:05,,,,,,,,FERMI,2026-01-01,01:55:13,,,58.7,minutes,after_trigger,,,,,,,17.67,,,,260101
+260101a,43284,26/01/01,01:07:07,83.7,deg,64.0,deg,3.6,deg,,FERMI,2026-01-01,00:56:30,,,,,,,,,,,,,83.7,64.0,3.6,260101

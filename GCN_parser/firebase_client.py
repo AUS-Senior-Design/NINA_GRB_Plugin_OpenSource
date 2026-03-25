@@ -7,11 +7,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def get_firestore_client():
     if not firebase_admin._apps:
         key_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
         if not key_path:
             raise RuntimeError("FIREBASE_SERVICE_ACCOUNT_PATH environment variable not set")
+        if not os.path.isabs(key_path):
+            key_path = os.path.join(_DIR, key_path)
         cred = credentials.Certificate(key_path)
         firebase_admin.initialize_app(cred)
     return firestore.client()

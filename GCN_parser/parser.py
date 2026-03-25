@@ -959,6 +959,7 @@ https://gcn.nasa.gov/unsubscribe/eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InNlbmlvcmRlc2
 
 # %%
 def get_llm_output(email_text):
+    parsed_raw = None
     try:
         # llm_output = parse_grb_circular_llama(email_text)
         parsed_raw = parse_grb_circular_gpt(email_text)
@@ -969,7 +970,8 @@ def get_llm_output(email_text):
         return parsed
     except Exception as e:
         print(f"[ERROR] Failed to process email: {e}")
-        save_failed_logs(parsed_raw, str(e))
+        if parsed_raw is not None:
+            save_failed_logs(parsed_raw, str(e))
         return None
 
 # %%
@@ -989,7 +991,7 @@ def parse_email_text(email_text: str):
     parsed = get_llm_output(email_text)
     print(f"===== PARSED OUTPUT========\n{parsed}\n")
     save_log(parsed)
-    push_grb_to_firestore(parsed)
+    merge_alert(parsed)
 
 
 

@@ -177,7 +177,7 @@ namespace Sd.NINA.Demo2.Services {
             bool snrCheck = !grb.SNR.HasValue || grb.SNR >= snrThreshold;
             Console.WriteLine($"SNR check (>= {snrThreshold}): {snrCheck} ({grb.SNR})");
 
-            result.IsObservable = decCheck && errorCheck && countRateCheck && fluxCheck && magCheck && snrCheck;
+            result.IsObservable = telescopeCheck && notAlreadyObserved && decCheck && errorCheck && countRateCheck && fluxCheck && magCheck && snrCheck;
 
             return result;
         }

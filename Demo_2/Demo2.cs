@@ -169,8 +169,8 @@ namespace Sd.NINA.Demo2 {
         }
 
         public double SNR {
-            get => Settings.Default.Flux_2;
-            set { Settings.Default.Flux_2 = (int)value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+            get => Settings.Default.SNR;
+            set { Settings.Default.SNR = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
         }
 
         public List<string> AvailableProfiles {
@@ -219,7 +219,7 @@ namespace Sd.NINA.Demo2 {
             }
         }
         public bool isOther {
-            get => Settings.Default.isSVOM;
+            get => Settings.Default.isOther;
             set {
                 Settings.Default.isOther = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged();
             }
