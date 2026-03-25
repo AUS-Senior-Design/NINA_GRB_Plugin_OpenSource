@@ -1,0 +1,2 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code
+251228a,43246,25/12/28,00:52:53,150.2,deg,49.8,deg,10.7,deg,,FERMI,2025-12-28,00:42:10,,,,,,,,,,,,,150.2,49.8,10.7,251228

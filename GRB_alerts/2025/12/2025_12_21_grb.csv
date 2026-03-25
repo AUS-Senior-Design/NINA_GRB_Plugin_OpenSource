@@ -1,0 +1,4 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code
+251221a,43234,25/12/25,05:09:07,06h 45m 41.4s,hms,"+00d 44' 15.8""",daa,1.4,arcmin,,SWIFT,,,,,,,,,,,2.0,erg cm^-2,,,101.4225,0.7377222222222222,0.02333333333333333,251221
+251221a,43220,25/12/23,17:54:25,,,,,,,,EP,,,,,24,hours,after_trigger,,,,,,,21,,,,251221
+251221a,43217,25/12/23,15:21:03,,,,,,,,EP,,21:36:54,23:12:54,,25.6,hours,after_trigger,,,,,,,22.5,,,,251221

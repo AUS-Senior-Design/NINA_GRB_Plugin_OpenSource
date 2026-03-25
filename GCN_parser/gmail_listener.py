@@ -12,8 +12,9 @@ from parser import parse_email_text
 # Needs modify permission to mark as read
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
-CREDENTIALS_FILE = "credentials.json"
-TOKEN_FILE = "token.json"
+_DIR = os.path.dirname(os.path.abspath(__file__))
+CREDENTIALS_FILE = os.path.join(_DIR, "credentials.json")
+TOKEN_FILE = os.path.join(_DIR, "token.json")
 
 def handle_email_text(email_text: str):
     """
@@ -25,15 +26,25 @@ def handle_email_text(email_text: str):
     parse_email_text(email_text)
 
 def get_gmail_service():
+    from google.auth.exceptions import RefreshError
     creds = None
 
     if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        try:
+            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        except Exception:
+            creds = None
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+            except RefreshError:
+                print("[AUTH] Token expired/revoked. Re-authenticating...")
+                os.remove(TOKEN_FILE)
+                creds = None
+
+        if not creds:
             if not os.path.exists(CREDENTIALS_FILE):
                 raise FileNotFoundError(
                     f"Missing {CREDENTIALS_FILE}. Download OAuth client JSON and place it next to this script."
@@ -106,7 +117,7 @@ def fetch_unread_inbox_ids(service, max_results: int = 10):
     # unread + inbox
     resp = service.users().messages().list(
         userId="me",
-        q="in:inbox is:unread",
+        q="in:inbox is:unread category:primary",
         maxResults=max_results
     ).execute()
     return [m["id"] for m in resp.get("messages", [])]
