@@ -34,8 +34,18 @@ namespace Sd.NINA.Demo2.Services {
         // so skipping seen IDs would cause us to miss updates to existing GRBs.
         // private readonly HashSet<string> seenDocumentIds = new HashSet<string>();
 
-        // halla: track the last-seen data per GRB name so we only re-evaluate when the doc actually changed
+        // Track the last-seen data per GRB name so we only re-evaluate when the doc actually changed.
+        // Keys are GRB names, values are sorted-field fingerprints (sorted to avoid false changes from JSON ordering).
         private readonly Dictionary<string, string> lastSeenDataByGrbName = new Dictionary<string, string>();
+
+        // For non-observable GRBs: track when we last evaluated them so we re-check every 5 min
+        // (sky window may open later) without spamming notifications every 30s.
+        private readonly Dictionary<string, DateTime> _lastNotObservableCheck = new Dictionary<string, DateTime>();
+        private const int NotObservableRecheckSeconds = 60;
+
+        // GRBs that have been posted to observable_list this session.
+        // Cleared when their document fingerprint changes (email merge → re-evaluate + re-post if still observable).
+        private readonly HashSet<string> _postedToObservableList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private const int PollIntervalSeconds = 30;
         private string _projectId;
@@ -163,20 +173,7 @@ namespace Sd.NINA.Demo2.Services {
                 string docId = doc["name"]?.ToString();
                 if (string.IsNullOrEmpty(docId)) continue;
 
-                // halla: instead of skipping seen doc IDs, we fingerprint the document's
-                // data and skip only if the content hasn't changed since last poll.
-                // This lets us re-evaluate when Python updates a GRB's record in place.
-                // if (seenDocumentIds.Contains(docId)) continue;
-                // seenDocumentIds.Add(docId);
-                string docFingerprint = doc["fields"]?.ToString(Newtonsoft.Json.Formatting.None) ?? "";
-                string grbNameForCheck = doc["fields"]?["GRB_name"]?["stringValue"]?.ToString() ?? docId;
-                if (lastSeenDataByGrbName.TryGetValue(grbNameForCheck, out string lastFingerprint)
-                    && lastFingerprint == docFingerprint) {
-                    continue;
-                }
-                lastSeenDataByGrbName[grbNameForCheck] = docFingerprint;
-
-                // ── Map document → GRBEvent ──────────────────────────────────────
+                // ── Map document → GRBEvent first so we have the name for fast checks ──
                 GRBEvent grb;
                 try {
                     grb = MapDocumentToGRBEvent(doc);
@@ -185,7 +182,56 @@ namespace Sd.NINA.Demo2.Services {
                     continue;
                 }
 
-                Logger.Info($"[GRB Listener] New or updated alert: {grb.Name} " +
+                // ── Fast skips (check every poll — state changes independently of doc content) ──
+
+                // Already captured this session — never re-evaluate
+                if (GRBObservabilityService.IsAlreadyObserved(grb.Name)) {
+                    Logger.Info($"[GRB Listener] {grb.Name} already captured this session — skipping.");
+                    continue;
+                }
+
+                // Currently sitting in the capture queue — window is active, don't re-post
+                if (GRBPendingState.PendingGrb?.Name?.Equals(grb.Name, StringComparison.OrdinalIgnoreCase) == true) {
+                    Logger.Info($"[GRB Listener] {grb.Name} is already queued for capture — skipping.");
+                    continue;
+                }
+
+                // ── Fingerprint check — only re-evaluate when email merge changes the doc ──
+                // Sort fields by key before fingerprinting to avoid false changes from JSON field ordering.
+                var fieldsObj = doc["fields"] as JObject;
+                string docFingerprint = fieldsObj != null
+                    ? new JObject(fieldsObj.Properties().OrderBy(p => p.Name))
+                        .ToString(Newtonsoft.Json.Formatting.None)
+                    : "";
+
+                bool isKnownGrb = lastSeenDataByGrbName.TryGetValue(grb.Name, out string lastFingerprint);
+                bool fingerprintChanged = !isKnownGrb || lastFingerprint != docFingerprint;
+
+                // For non-observable GRBs we keep the fingerprint intact (so merges are still detected)
+                // but force a re-check every 60s in case the sky window has since opened.
+                bool forceRecheck = !fingerprintChanged
+                                    && _lastNotObservableCheck.TryGetValue(grb.Name, out DateTime lastCheck)
+                                    && (DateTime.UtcNow - lastCheck).TotalSeconds >= NotObservableRecheckSeconds;
+
+                if (!fingerprintChanged && !forceRecheck) {
+                    // Doc unchanged and not due for a recheck — nothing to do
+                    continue;
+                }
+
+                // Distinguish new alert vs email merge (refined data for same GRB)
+                // isMergedUpdate is true only when content actually changed — not on a forced recheck
+                bool isMergedUpdate = isKnownGrb && fingerprintChanged;
+
+                // Only update the stored fingerprint when content actually changed
+                if (fingerprintChanged)
+                    lastSeenDataByGrbName[grb.Name] = docFingerprint;
+
+                // If doc changed, the email merge may have improved coordinates/data —
+                // allow re-posting to observable_list even if we posted before
+                _postedToObservableList.Remove(grb.Name);
+
+                string alertTag = isMergedUpdate ? "UPDATED" : "NEW";
+                Logger.Info($"[GRB Listener] {alertTag} alert: {grb.Name} " +
                             $"RA={grb.RA:F4}°  Dec={grb.Dec:F4}°  " +
                             $"Error={grb.Error:F4} arcmin  " +
                             $"Telescope={grb.SpaceTelescope ?? "unknown"}");
@@ -201,19 +247,40 @@ namespace Sd.NINA.Demo2.Services {
                     }
 
                     if (!obsResult.IsObservable) {
-                        Logger.Warning($"[GRB Listener] {grb.Name} is NOT observable — skipping.");
-                        Notification.ShowWarning($"GRB {grb.Name} is not observable.");
+                        // Only notify if this is new content (fingerprint changed or first time) or a forced recheck
+                        bool shouldNotify = fingerprintChanged
+                                            || !_lastNotObservableCheck.ContainsKey(grb.Name)
+                                            || forceRecheck;
+
+                        _lastNotObservableCheck[grb.Name] = DateTime.UtcNow;
+
+                        if (shouldNotify) {
+                            Logger.Warning($"[GRB Listener] {grb.Name} is NOT observable — skipping.");
+                            string notObsMsg = isMergedUpdate
+                                ? $"GRB {grb.Name}: refined alert received but still not observable — check log."
+                                : $"GRB {grb.Name}: new alert received but not observable — check log.";
+                            Notification.ShowWarning(notObsMsg);
+                        }
+                        continue;
+                    }
+
+                    // Already posted to observable_list this session (and doc hasn't changed since) — skip re-post
+                    if (_postedToObservableList.Contains(grb.Name)) {
+                        Logger.Info($"[GRB Listener] {grb.Name} already in observable_list — skipping re-post.");
                         continue;
                     }
 
                     string windowStr = (obsResult.StartTime.HasValue && obsResult.EndTime.HasValue)
-                        ? $" | Window: {obsResult.StartTime.Value:HH:mm}–{obsResult.EndTime.Value:HH:mm} UTC"
-                        : "";
-                    Logger.Info($"[GRB Listener] {grb.Name} is OBSERVABLE.{windowStr}");
-                    Notification.ShowInformation($"GRB {grb.Name} is observable!{windowStr}");
+                        ? $"{obsResult.StartTime.Value:HH:mm}–{obsResult.EndTime.Value:HH:mm} UTC"
+                        : "window unknown";
 
-                    // Insiyah: If observable we are storing the grb event into the collection: observable_list
-                    // also stored: observable window, site_lat and site_long, MPC
+                    Logger.Info($"[GRB Listener] {grb.Name} is OBSERVABLE. Window: {windowStr}");
+
+                    string obsMsg = isMergedUpdate
+                        ? $"GRB {grb.Name}: refined alert — now observable! Window: {windowStr}"
+                        : $"GRB {grb.Name}: OBSERVABLE! Window: {windowStr} — waiting for window to open.";
+                    Notification.ShowInformation(obsMsg);
+
                     _ = FirestoreCapturePoster.PostObservableAlertAsync(
                             grb,
                             obsResult,
@@ -221,17 +288,13 @@ namespace Sd.NINA.Demo2.Services {
                             _profileService.ActiveProfile.AstrometrySettings.Longitude,
                             Settings.Default.ObservatoryCode
                         );
-                    //--------------------------------------------------------------
+
+                    _postedToObservableList.Add(grb.Name);
 
                 } else {
                     Logger.Warning("[GRB Listener] No observability service set — queuing without check.");
                     Notification.ShowInformation("GRB Alert: " + grb.Name + " queued for capture.");
                 }
-
-                // halla: queuing is now handled by Loop 2 (QueuePollLoopAsync) which reads
-                // observable_list, picks the earliest deadline, and queues when the window is active.
-                // GRBPendingState.PendingGrb = grb;
-                // Logger.Info($"[GRB Listener] {grb.Name} stored in GRBPendingState.");
             }
         }
 
@@ -310,11 +373,27 @@ namespace Sd.NINA.Demo2.Services {
             DateTime now = DateTime.UtcNow;
 
             if (now >= earliest.startTime && now < earliest.endTime) {
+                // Skip if already captured this session
+                if (GRBObservabilityService.IsAlreadyObserved(earliest.grb.Name)) {
+                    Logger.Info($"[GRB Queue] {earliest.grb.Name} already captured — removing stale observable_list entry.");
+                    await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
+                    return;
+                }
+
+                // Skip if this GRB is already sitting in the pending slot
+                if (GRBPendingState.PendingGrb?.Name?.Equals(earliest.grb.Name, StringComparison.OrdinalIgnoreCase) == true) {
+                    Logger.Info($"[GRB Queue] {earliest.grb.Name} already pending — skipping re-queue.");
+                    return;
+                }
+
                 // halla: window is active — queue the GRB for capture
                 GRBPendingState.PendingGrb = earliest.grb;
                 Logger.Info($"[GRB Queue] Window active — queued {earliest.grb.Name} " +
                             $"(window {earliest.startTime:HH:mm}–{earliest.endTime:HH:mm} UTC)");
-                Notification.ShowInformation($"GRB {earliest.grb.Name} queued for capture.");
+                Notification.ShowInformation(
+                    $"GRB {earliest.grb.Name}: window open! Queued for capture — " +
+                    $"RA={earliest.grb.RA:F2}°  Dec={earliest.grb.Dec:F2}°  " +
+                    $"ends {earliest.endTime:HH:mm} UTC");
 
                 // halla: remove from observable_list so it doesn't get queued again
                 await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
@@ -369,7 +448,7 @@ namespace Sd.NINA.Demo2.Services {
                 // Error = (GetDouble("error_deg") ?? 0.0) * 60.0,
                 Error = GetDouble("error_arcmin") ?? (GetDouble("error_deg") ?? 0.0) * 60.0,
                 TriggerTime = ParseTriggerTime(fields),
-                SpaceTelescope = GetString("telescope") ?? GetString("instrument") ?? "",
+                SpaceTelescope = GetString("telescope") ?? GetString("space_telescope") ?? GetString("instrument") ?? "",
                 Magnitude = GetDouble("magnitude"),
                 Flux = GetDouble("flux"),
                 SNR = GetDouble("snr"),

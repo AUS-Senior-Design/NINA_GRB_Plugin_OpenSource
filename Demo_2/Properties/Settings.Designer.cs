@@ -238,5 +238,83 @@ namespace Sd.NINA.Demo2.Properties {
                 this["SNR"] = value;
             }
         }
+
+        // ── Exposure settings (B) ─────────────────────────────────────────────────
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("3")]
+        public int ExposureCount {
+            get { return ((int)(this["ExposureCount"])); }
+            set { this["ExposureCount"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("30")]
+        public double ExposureTime {
+            get { return ((double)(this["ExposureTime"])); }
+            set { this["ExposureTime"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public int Binning {
+            get { return ((int)(this["Binning"])); }
+            set { this["Binning"] = value; }
+        }
+
+        // ── Moon / twilight settings (C) ──────────────────────────────────────────
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("-6")]
+        public double AstroTwilight {
+            get { return ((double)(this["AstroTwilight"])); }
+            set { this["AstroTwilight"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("90")]
+        public double MaxMoonAlt {
+            get { return ((double)(this["MaxMoonAlt"])); }
+            set { this["MaxMoonAlt"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public double MinMoonSep {
+            get { return ((double)(this["MinMoonSep"])); }
+            set { this["MinMoonSep"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("100")]
+        public double MaxMoonPhase {
+            get { return ((double)(this["MaxMoonPhase"])); }
+            set { this["MaxMoonPhase"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute(@"C:\Program Files\Siril\bin\siril.exe")]
+        public string SirilPath {
+            get { return ((string)(this["SirilPath"])); }
+            set { this["SirilPath"] = value; }
+        }
+
+        // ── Observatory state settings ────────────────────────────────────────────
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public int MaxWaitMinutes {
+            get { return ((int)(this["MaxWaitMinutes"])); }
+            set { this["MaxWaitMinutes"] = value; }
+        }
     }
 }

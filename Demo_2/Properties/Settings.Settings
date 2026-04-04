@@ -56,5 +56,20 @@
     <Setting Name="SNR" Type="System.Double" Scope="User">
       <Value Profile="(Default)">0</Value>
     </Setting>
+    <Setting Name="AstroTwilight" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">-12</Value>
+    </Setting>
+    <Setting Name="MaxMoonAlt" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">20</Value>
+    </Setting>
+    <Setting Name="MinMoonSep" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">30</Value>
+    </Setting>
+    <Setting Name="MaxMoonPhase" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">75</Value>
+    </Setting>
+    <Setting Name="SirilPath" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:\Program Files\Siril\bin\siril.exe</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

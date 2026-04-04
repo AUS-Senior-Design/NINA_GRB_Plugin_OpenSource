@@ -474,22 +474,51 @@ def parse_grb_circular_llama(text: str):
 
 
 # ===========GPT Specific Functions============
-def call_gpt(prompt: str) -> str:
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.5,
-    )
-    return response.choices[0].message.content
 
-# Changed Prompt
+_MAX_RETRIES = 3          # number of attempts before giving up
+_RETRY_BASE_DELAY = 2.0   # seconds; doubles each retry (2 → 4 → 8)
+
+def call_gpt(prompt: str) -> str:
+    """
+    Call GPT-4o-mini with automatic retry on transient errors
+    (rate limits, connection errors, timeouts).
+    Uses temperature=0 for deterministic structured extraction.
+    """
+    import time as _time
+    from openai import RateLimitError, APIConnectionError, APITimeoutError
+
+    last_exc = None
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user",   "content": prompt},
+                ],
+                temperature=0,   # deterministic — structured extraction must not hallucinate
+            )
+            return response.choices[0].message.content
+
+        except (RateLimitError, APIConnectionError, APITimeoutError) as exc:
+            last_exc = exc
+            delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
+            print(f"[GPT] Attempt {attempt}/{_MAX_RETRIES} failed ({type(exc).__name__}). "
+                  f"Retrying in {delay:.0f}s…")
+            _time.sleep(delay)
+
+        except Exception as exc:
+            # Non-retryable error (auth failure, bad request, etc.) — fail immediately
+            raise
+
+    raise RuntimeError(
+        f"GPT call failed after {_MAX_RETRIES} attempts. Last error: {last_exc}"
+    )
+
+
 def parse_grb_circular_gpt(text: str):
     prompt = USER_PROMPT_TEMPLATE_2.format(text=text)
     data = extract_json(call_gpt(prompt))
-    # return GRBData(**data)
     return data
 
 # %% [markdown]
@@ -624,6 +653,92 @@ def convert_to_deg(llm_output: dict) -> dict:
         out["error_deg"] = None
 
     return out
+
+
+def validate_extracted_values(parsed: dict) -> list[str]:
+    """
+    Check that extracted sky coordinates and measurements fall within physical bounds.
+    Returns a list of warning strings (empty list = all checks passed).
+    Adds a boolean field 'validation_passed' to the dict in place.
+    """
+    warnings = []
+
+    ra = parsed.get("ra_deg")
+    dec = parsed.get("dec_deg")
+    err = parsed.get("error_deg")
+
+    if ra is not None:
+        if not (0.0 <= ra <= 360.0):
+            warnings.append(f"ra_deg={ra:.4f} is outside [0, 360] — likely a unit conversion error.")
+            parsed["ra_deg"] = None  # nullify bad value so it doesn't pollute Firestore
+
+    if dec is not None:
+        if not (-90.0 <= dec <= 90.0):
+            warnings.append(f"dec_deg={dec:.4f} is outside [-90, 90] — likely a unit conversion error.")
+            parsed["dec_deg"] = None
+
+    if err is not None:
+        if err <= 0:
+            warnings.append(f"error_deg={err:.6f} is ≤ 0 — invalid positional uncertainty.")
+            parsed["error_deg"] = None
+        elif err > 10.0:  # > 10 degrees is implausibly large for any useful follow-up
+            warnings.append(f"error_deg={err:.4f}° ({err*60:.1f} arcmin) is very large — check error_unit.")
+
+    flux = parsed.get("flux")
+    if flux is not None and flux < 0:
+        warnings.append(f"flux={flux} is negative — setting to null.")
+        parsed["flux"] = None
+
+    mag = parsed.get("magnitude")
+    if mag is not None and not (-5 <= mag <= 35):
+        warnings.append(f"magnitude={mag} is outside physical range [-5, 35] — setting to null.")
+        parsed["magnitude"] = None
+
+    parsed["validation_passed"] = len(warnings) == 0
+
+    if warnings:
+        print(f"[VALIDATION] {len(warnings)} issue(s) found:")
+        for w in warnings:
+            print(f"  ⚠  {w}")
+    else:
+        print("[VALIDATION] All checks passed.")
+
+    return warnings
+
+
+# Key fields used for confidence scoring and their relative weights.
+_CONFIDENCE_FIELDS = {
+    "GRB_name":         2.0,
+    "ra_deg":           3.0,
+    "dec_deg":          3.0,
+    "error_deg":        2.0,
+    "trigger_time_utc": 2.5,
+    "space_telescope":  1.5,
+    "magnitude":        0.5,
+    "flux":             0.5,
+    "snr":              0.5,
+}
+
+def compute_confidence_score(parsed: dict) -> float:
+    """
+    Returns a score in [0.0, 1.0] reflecting how complete the extracted record is.
+    Each key field contributes its weight only when its value is non-null.
+    Score = sum(present weights) / sum(all weights).
+    Adds 'confidence_score' to the dict in place.
+    """
+    total_weight   = sum(_CONFIDENCE_FIELDS.values())
+    present_weight = sum(
+        w for field, w in _CONFIDENCE_FIELDS.items()
+        if parsed.get(field) is not None
+    )
+    score = round(present_weight / total_weight, 3)
+    parsed["confidence_score"] = score
+
+    label = "HIGH" if score >= 0.7 else ("MEDIUM" if score >= 0.4 else "LOW")
+    print(f"[CONFIDENCE] Score = {score:.3f}  ({label}) — "
+          f"{present_weight:.1f}/{total_weight:.1f} weighted fields present.")
+    return score
+
 
 # %%
 def get_trigger_date(llm_output: dict) -> Optional[str]:
@@ -961,12 +1076,17 @@ https://gcn.nasa.gov/unsubscribe/eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InNlbmlvcmRlc2
 def get_llm_output(email_text):
     parsed_raw = None
     try:
-        # llm_output = parse_grb_circular_llama(email_text)
         parsed_raw = parse_grb_circular_gpt(email_text)
         parsed = convert_to_deg(parsed_raw)
         parsed["date_code"] = extract_date_from_grb_name(parsed.get("GRB_name", ""))
         parsed["GRB_name"] = extract_grb_name(parsed.get("GRB_name", ""))
+        parsed["trigger_date"] = get_trigger_date(parsed)
         parsed["trigger_time_utc"] = compute_trigger_time(parsed)
+
+        # Post-extraction quality checks
+        validate_extracted_values(parsed)
+        compute_confidence_score(parsed)
+
         return parsed
     except Exception as e:
         print(f"[ERROR] Failed to process email: {e}")
@@ -978,17 +1098,54 @@ def get_llm_output(email_text):
 # saves any raw alert we get , hopefully pushes to firestore
 # update this to also get final_alert
 
+# Keywords that identify a retraction, test, or admin circular — not a real GRB alert.
+_SKIP_SUBJECTS = ("retraction", "withdrawn", "correction", "error in", "test circular",
+                  "gcn test", "subscri", "unsubscri")
+
+def _is_grb_circular(text: str) -> bool:
+    """
+    Fast pre-flight check before spending an API call.
+    Returns False if the email is clearly NOT a GRB position report:
+      - No 'GRB' keyword anywhere in the text, OR
+      - Subject/title contains a retraction/test/admin keyword.
+    """
+    text_lower = text.lower()
+
+    # Must mention a GRB somewhere
+    if "grb" not in text_lower:
+        print("[FILTER] Skipping email — no 'GRB' keyword found.")
+        return False
+
+    # Skip retractions and admin messages
+    first_500 = text_lower[:500]
+    for kw in _SKIP_SUBJECTS:
+        if kw in first_500:
+            print(f"[FILTER] Skipping email — matched skip keyword: '{kw}'.")
+            return False
+
+    return True
+
+
 def parse_email_text(email_text: str):
     """
     Entry point from Gmail listener.
     Receives raw email body as plain text.
     """
-
     print("\n================ RAW EMAIL TEXT =================")
     print(email_text.strip())
     print("=================================================\n")
 
+    # Pre-flight: avoid wasting API calls on non-GRB emails
+    if not _is_grb_circular(email_text):
+        return
+
     parsed = get_llm_output(email_text)
+
+    # Guard: if extraction failed entirely, stop here
+    if parsed is None:
+        print("[WARN] parse_email_text: LLM extraction returned None — skipping save and merge.")
+        return
+
     print(f"===== PARSED OUTPUT========\n{parsed}\n")
     save_log(parsed)
     merge_alert(parsed)

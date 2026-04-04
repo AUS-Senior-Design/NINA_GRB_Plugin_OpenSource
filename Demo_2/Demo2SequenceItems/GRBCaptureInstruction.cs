@@ -7,12 +7,18 @@ using NINA.Core.Utility.Notification;
 using NINA.Equipment.Interfaces.Mediator;
 using NINA.Equipment.Model;
 using NINA.Image.Interfaces;
+using NINA.Profile.Interfaces;
 using NINA.Sequencer.SequenceItem;
 using NINA.WPF.Base.Interfaces.Mediator;
 using Sd.NINA.Demo2.Models;
+using Sd.NINA.Demo2.Properties;
 using Sd.NINA.Demo2.Services;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,32 +36,48 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
     /// NINA.PlateSolving is referenced in the project.
     /// </summary>
     [ExportMetadata("Name", "GRB Capture")]
-    [ExportMetadata("Description", "Slews to GRB coordinates (up to 3 attempts), then captures 3 × 30 s LIGHT frames when a GRB alert fires.")]
+    [ExportMetadata("Description", "Checks observatory state (shutter, safety, telescope, camera), then slews and captures when a GRB alert fires.")]
     [ExportMetadata("Icon", "CameraSVG")]
     [ExportMetadata("Category", "GRB")]
     [Export(typeof(ISequenceItem))]
     [JsonObject(MemberSerialization.OptIn)]
     public class GRBCaptureInstruction : SequenceItem {
 
-        private readonly IImagingMediator imagingMediator;
-        private readonly IImageSaveMediator imageSaveMediator;
-        private readonly ITelescopeMediator telescopeMediator;
+        private readonly IImagingMediator        imagingMediator;
+        private readonly IImageSaveMediator      imageSaveMediator;
+        private readonly ITelescopeMediator      telescopeMediator;
+        private readonly IDomeMediator           domeMediator;
+        private readonly ICameraMediator         cameraMediator;
+        private readonly ISafetyMonitorMediator  safetyMediator;
+        private readonly IProfileService         profileService;
+        private readonly GRBObservatoryStateService _observatoryService;
 
         // Retry up to 3 times if the mount reports a slew failure
         private const int MaxSlewAttempts = 3;
 
         [ImportingConstructor]
         public GRBCaptureInstruction(
-                IImagingMediator   imagingMediator,
-                IImageSaveMediator imageSaveMediator,
-                ITelescopeMediator telescopeMediator) {
+                IImagingMediator        imagingMediator,
+                IImageSaveMediator      imageSaveMediator,
+                ITelescopeMediator      telescopeMediator,
+                IDomeMediator           domeMediator,
+                ICameraMediator         cameraMediator,
+                ISafetyMonitorMediator  safetyMediator,
+                IProfileService         profileService) {
             this.imagingMediator   = imagingMediator;
             this.imageSaveMediator = imageSaveMediator;
             this.telescopeMediator = telescopeMediator;
+            this.domeMediator      = domeMediator;
+            this.cameraMediator    = cameraMediator;
+            this.safetyMediator    = safetyMediator;
+            this.profileService    = profileService;
+            _observatoryService    = new GRBObservatoryStateService(
+                telescopeMediator, domeMediator, cameraMediator, safetyMediator);
         }
 
         public GRBCaptureInstruction(GRBCaptureInstruction copyMe)
-            : this(copyMe.imagingMediator, copyMe.imageSaveMediator, copyMe.telescopeMediator) {
+            : this(copyMe.imagingMediator, copyMe.imageSaveMediator, copyMe.telescopeMediator,
+                   copyMe.domeMediator, copyMe.cameraMediator, copyMe.safetyMediator, copyMe.profileService) {
             CopyMetaData(copyMe);
         }
 
@@ -69,34 +91,78 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
                 return;
             }
 
+            if (GRBObservabilityService.IsAlreadyObserved(grb.Name)) {
+                Logger.Info($"[GRB Capture] {grb.Name} already captured this session — skipping duplicate.");
+                return;
+            }
+
             try {
                 Logger.Info($"[GRB Capture] Alert: {grb.Name}  RA={grb.RA:F4}°  Dec={grb.Dec:F4}°");
 
-                // ── Step 1: Slew to GRB coordinates ───────────────────────────────
+                // ── Step 1: Pre-flight observatory state check ─────────────────
+                var obsCheck = await _observatoryService.EvaluateAndPrepareAsync(grb.Name, progress, token);
+                if (obsCheck.Readiness == GRBReadiness.Skip) {
+                    Logger.Warning($"[GRB Capture] Skipping {grb.Name} — {obsCheck.Reason}");
+                    Notification.ShowWarning($"GRB {grb.Name} skipped: {obsCheck.Reason}");
+                    // Post skip reason to Firestore so Python side can see why it was missed
+                    await FirestoreCapturePoster.PostSkippedAsync(grb, obsCheck.Reason);
+                    return;
+                }
+
+                // ── Step 2: Slew to GRB coordinates ───────────────────────────────
+                // Save current position so we can return after capture
+                var preSlewCoords = telescopeMediator.GetInfo().Connected
+                    ? telescopeMediator.GetInfo().Coordinates
+                    : null;
+
                 await SlewAndCenter(grb, progress, token);
 
-                // ── Step 2: Three 30-second science exposures ─────────────────────
-                Logger.Info($"[GRB Capture] Starting 3 × 30 s exposures for {grb.Name}");
-                var seq = new CaptureSequence(30, CaptureSequence.ImageTypes.LIGHT, null, new BinningMode(1, 1), 1);
+                // ── Step 3: Science exposures (count/time/binning from Options) ────
+                DateTime captureStart = DateTime.UtcNow;
+                int    expCount   = Math.Max(1, Settings.Default.ExposureCount);
+                double expSeconds = Math.Max(1.0, Settings.Default.ExposureTime);
+                int    binning    = Math.Max(1, Settings.Default.Binning);
 
-                for (int i = 1; i <= 3; i++) {
+                Logger.Info($"[GRB Capture] Starting {expCount} × {expSeconds} s exposures (bin {binning}×{binning}) for {grb.Name}");
+                var seq = new CaptureSequence(expSeconds, CaptureSequence.ImageTypes.LIGHT,
+                                              null, new BinningMode((short)binning, (short)binning), 1);
+
+                for (int i = 1; i <= expCount; i++) {
                     token.ThrowIfCancellationRequested();
-                    progress.Report(new ApplicationStatus { Status = $"GRB {grb.Name}: exposure {i}/3  (30 s)" });
-                    Logger.Info($"[GRB Capture] Exposure {i}/3");
+                    progress.Report(new ApplicationStatus {
+                        Status = $"GRB {grb.Name}: exposure {i}/{expCount}  ({expSeconds} s, bin {binning}×{binning})"
+                    });
+                    Logger.Info($"[GRB Capture] Exposure {i}/{expCount}");
 
                     var exposureData = await imagingMediator.CaptureImage(seq, token, progress);
                     var imageData    = await exposureData.ToImageData(progress, token);
                     var prepareTask  = imagingMediator.PrepareImage(exposureData, new PrepareImageParameters(true, false), token);
                     await imageSaveMediator.Enqueue(imageData, prepareTask, progress, token);
 
-                    Logger.Info($"[GRB Capture] Exposure {i}/3 saved.");
+                    Logger.Info($"[GRB Capture] Exposure {i}/{expCount} saved.");
                 }
 
-                // ── Step 3: Notify + Firestore ────────────────────────────────────
-                Logger.Info($"[GRB Capture] Done: 3 exposures captured for {grb.Name}");
-                Notification.ShowSuccess($"GRB {grb.Name}: 3 exposures captured.");
-                await FirestoreCapturePoster.PostCaptureAsync(grb, 3, 30);
+                // ── Step 4: Notify + Firestore ────────────────────────────────────
+                Logger.Info($"[GRB Capture] Done: {expCount} exposures captured for {grb.Name}");
+                Notification.ShowSuccess($"GRB {grb.Name}: {expCount} exposures captured.");
+
+                // Pass the real NINA image save root so image_analyzer.py finds the FITS files
+                string imageRoot = profileService?.ActiveProfile?.ImageFileSettings?.FilePath
+                    ?? System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "N.I.N.A");
+                await FirestoreCapturePoster.PostCaptureAsync(grb, expCount, (int)expSeconds, imageRoot);
                 GRBObservabilityService.MarkAsObserved(grb.Name);
+
+                // ── Step 5: Open captured images in Siril ─────────────────────────
+                OpenInSiril(grb.Name, captureStart, profileService);
+
+                // ── Step 5: Return to original position ───────────────────────────
+                if (preSlewCoords != null && telescopeMediator.GetInfo().Connected) {
+                    progress.Report(new ApplicationStatus { Status = "GRB capture done — returning to original position." });
+                    Logger.Info($"[GRB Capture] Returning to original position RA={preSlewCoords.RADegrees:F4}°  Dec={preSlewCoords.Dec:F4}°");
+                    await telescopeMediator.SlewToCoordinatesAsync(preSlewCoords, token);
+                    Logger.Info("[GRB Capture] Returned to original position.");
+                }
 
             } catch (OperationCanceledException) {
                 Logger.Warning($"[GRB Capture] Cancelled — {grb?.Name}");
@@ -106,15 +172,72 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
             }
         }
 
+        // ── Open in Siril ──────────────────────────────────────────────────────────
+        /// <summary>
+        /// After capture completes, finds all FITS files created since captureStart
+        /// inside NINA's image save directory, then launches Siril pointing at the
+        /// folder that contains them.
+        /// </summary>
+        private void OpenInSiril(string grbName, DateTime captureStart, IProfileService profileService) {
+            try {
+                string sirilExe = Settings.Default.SirilPath?.Trim();
+                if (string.IsNullOrEmpty(sirilExe) || !File.Exists(sirilExe)) {
+                    Logger.Info("[GRB Siril] Siril path not configured or not found — skipping auto-open.");
+                    return;
+                }
+
+                // Root image save directory from the active NINA profile
+                string imageRoot = profileService?.ActiveProfile?.ImageFileSettings?.FilePath
+                    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "N.I.N.A");
+
+                if (!Directory.Exists(imageRoot)) {
+                    Logger.Warning($"[GRB Siril] Image root not found: {imageRoot}");
+                    return;
+                }
+
+                // Find all FITS files created since capture started
+                var fitsFiles = Directory.EnumerateFiles(imageRoot, "*.*", SearchOption.AllDirectories)
+                    .Where(f => (f.EndsWith(".fits", StringComparison.OrdinalIgnoreCase) ||
+                                 f.EndsWith(".fit",  StringComparison.OrdinalIgnoreCase) ||
+                                 f.EndsWith(".fts",  StringComparison.OrdinalIgnoreCase)) &&
+                                File.GetCreationTimeUtc(f) >= captureStart)
+                    .ToList();
+
+                if (fitsFiles.Count == 0) {
+                    Logger.Warning("[GRB Siril] No FITS files found since capture started.");
+                    return;
+                }
+
+                // Use the common parent folder of all captured files as the working dir
+                string workDir = fitsFiles
+                    .Select(f => Path.GetDirectoryName(f))
+                    .GroupBy(d => d)
+                    .OrderByDescending(g => g.Count())
+                    .First().Key;
+
+                Logger.Info($"[GRB Siril] Opening Siril for {grbName} — {fitsFiles.Count} file(s) in {workDir}");
+
+                Process.Start(new ProcessStartInfo {
+                    FileName  = sirilExe,
+                    Arguments = $"-d \"{workDir}\"",
+                    UseShellExecute = true
+                });
+
+                Notification.ShowSuccess($"GRB {grbName}: {fitsFiles.Count} FITS file(s) opened in Siril.");
+            } catch (Exception ex) {
+                Logger.Error($"[GRB Siril] Failed to open Siril: {ex.Message}");
+            }
+        }
+
         // ── Slew with retry ────────────────────────────────────────────────────────
         /// <summary>
-        /// Slews the mount to the GRB target coordinates.
-        /// Retries up to MaxSlewAttempts times if the mount reports a failure.
-        /// If the telescope is not connected, captures in place (no slew).
-        ///
-        /// TODO: Add plate-solve centering here once NINA.PlateSolving is referenced.
-        ///       After each successful slew, capture a 5-second snap, plate solve it,
-        ///       sync the mount if offset > 30", and re-slew. Repeat up to 3 times.
+        /// Slews the mount to the GRB target, then runs plate-solve centering.
+        /// Centering loop (up to 3 iterations):
+        ///   1. Capture a 5 s, 2×2 binned SNAPSHOT
+        ///   2. Prepare image — if NINA's plate solver is configured it embeds WCS into metadata
+        ///   3. If WCS found: compute offset, sync + re-slew if offset > 30 arcsec
+        ///   4. If no WCS after the first snap: log and skip remaining iterations
+        /// Falls back to a plain slew when telescope is not connected.
         /// </summary>
         private async Task SlewAndCenter(GRBEvent grb, IProgress<ApplicationStatus> progress, CancellationToken token) {
             if (!telescopeMediator.GetInfo().Connected) {
@@ -123,32 +246,107 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
                 return;
             }
 
-            // RA stored in degrees in GRBEvent — convert to hours for NINA Coordinates
+            // RA stored in degrees → convert to hours for NINA Coordinates
             var target = new Coordinates(grb.RA / 15.0, grb.Dec, Epoch.J2000, Coordinates.RAType.Hours);
 
+            // Pre-slew altitude check — abort if target is below the horizon
+            {
+                double lat = profileService.ActiveProfile.AstrometrySettings.Latitude;
+                double lon = profileService.ActiveProfile.AstrometrySettings.Longitude;
+                double lstHours = AstroUtil.GetLocalSiderealTime(DateTime.UtcNow, lon);
+                Angle  lst = Angle.ByHours(lstHours);
+                Angle  ha  = AstroUtil.GetHourAngle(lst, Angle.ByDegree(grb.RA));
+                double alt = AstroUtil.GetAltitude(ha.Degree, lat, grb.Dec);
+                Logger.Info($"[GRB Capture] Pre-slew altitude check: Alt={alt:F1}°");
+                if (alt < 0) {
+                    Logger.Error($"[GRB Capture] {grb.Name} is below the horizon (Alt={alt:F1}°) — aborting slew.");
+                    Notification.ShowError($"GRB {grb.Name}: target is below the horizon (Alt={alt:F1}°). Capture aborted.");
+                    throw new InvalidOperationException($"GRB {grb.Name} is below the horizon (Alt={alt:F1}°).");
+                }
+            }
+
+            // ── Step 1: Initial slew with retries ─────────────────────────────────
+            bool slewOk = false;
             for (int attempt = 1; attempt <= MaxSlewAttempts; attempt++) {
                 token.ThrowIfCancellationRequested();
-
                 progress.Report(new ApplicationStatus {
                     Status = $"GRB {grb.Name}: slewing… (attempt {attempt}/{MaxSlewAttempts})"
                 });
-                Logger.Info($"[GRB Capture] Slew attempt {attempt}/{MaxSlewAttempts} " +
-                            $"→ RA={grb.RA:F4}°  Dec={grb.Dec:F4}°");
+                Logger.Info($"[GRB Capture] Slew attempt {attempt}/{MaxSlewAttempts} → RA={grb.RA:F4}°  Dec={grb.Dec:F4}°");
 
-                bool slewOk = await telescopeMediator.SlewToCoordinatesAsync(target, token);
-
+                slewOk = await telescopeMediator.SlewToCoordinatesAsync(target, token);
                 if (slewOk) {
                     Logger.Info($"[GRB Capture] Slew succeeded on attempt {attempt}.");
-                    progress.Report(new ApplicationStatus { Status = $"GRB {grb.Name}: on target." });
+                    break;
+                }
+                Logger.Warning($"[GRB Capture] Slew failed on attempt {attempt}.");
+            }
+
+            if (!slewOk) {
+                Logger.Error("[GRB Capture] All slew attempts failed — capturing at current position.");
+                Notification.ShowWarning($"GRB {grb.Name}: slew failed after {MaxSlewAttempts} attempts, capturing in place.");
+                return;
+            }
+
+            progress.Report(new ApplicationStatus { Status = $"GRB {grb.Name}: on target — running plate-solve centering." });
+
+            // ── Step 2: Plate-solve centering loop ────────────────────────────────
+            // Requires NINA's plate solver to be configured in Tools → Options → Plate Solving.
+            // If no WCS is returned on the first snap, centering is skipped gracefully.
+            const double CenteringThresholdArcsec = 30.0;
+            const int    MaxCenteringIterations   = 3;
+
+            for (int iter = 1; iter <= MaxCenteringIterations; iter++) {
+                token.ThrowIfCancellationRequested();
+                progress.Report(new ApplicationStatus {
+                    Status = $"GRB {grb.Name}: centering snap {iter}/{MaxCenteringIterations}…"
+                });
+
+                // Capture a short, binned snap purely for centering
+                var snapSeq = new CaptureSequence(5, CaptureSequence.ImageTypes.SNAPSHOT,
+                                                  null, new BinningMode(2, 2), 1);
+                IExposureData snapExposure;
+                try {
+                    snapExposure = await imagingMediator.CaptureImage(snapSeq, token, progress);
+                } catch (Exception ex) {
+                    Logger.Warning($"[GRB Capture] Centering snap {iter} failed: {ex.Message} — stopping centering.");
                     break;
                 }
 
-                Logger.Warning($"[GRB Capture] Slew failed on attempt {attempt}.");
+                // PrepareImage with autoStretch=false, detectStars=false (fast).
+                // If plate-solve is enabled in NINA settings, solved WCS will be in RawImageData.MetaData.
+                var prepared = await imagingMediator.PrepareImage(
+                    snapExposure, new PrepareImageParameters(false, false), token);
 
-                if (attempt == MaxSlewAttempts) {
-                    Logger.Error("[GRB Capture] All slew attempts failed — capturing at current position.");
-                    Notification.ShowWarning($"GRB {grb.Name}: slew failed after {MaxSlewAttempts} attempts, capturing in place.");
+                var wcs = prepared?.RawImageData?.MetaData?.WorldCoordinateSystem;
+                if (wcs == null) {
+                    if (iter == 1)
+                        Logger.Info("[GRB Capture] No WCS in centering snap — plate solver not configured or solve failed. Skipping centering.");
+                    break;
                 }
+
+                // Get the sky coordinate at the image centre pixel
+                double cx = prepared.RawImageData.Properties.Width  / 2.0;
+                double cy = prepared.RawImageData.Properties.Height / 2.0;
+                var solvedCenter = wcs.GetCoordinates(cx, cy);
+
+                // Angular separation between solved centre and GRB target
+                double sepArcsec = (solvedCenter - target).Distance.ArcSeconds;
+                Logger.Info($"[GRB Capture] Centering iter {iter}: offset = {sepArcsec:F1}\"");
+
+                if (sepArcsec <= CenteringThresholdArcsec) {
+                    Logger.Info($"[GRB Capture] Centering complete — offset {sepArcsec:F1}\" ≤ {CenteringThresholdArcsec}\".");
+                    progress.Report(new ApplicationStatus { Status = $"GRB {grb.Name}: centred ({sepArcsec:F1}\")." });
+                    break;
+                }
+
+                // Sync telescope to the solved position, then re-slew to target
+                Logger.Info($"[GRB Capture] Offset {sepArcsec:F1}\" > {CenteringThresholdArcsec}\" — syncing and re-slewing.");
+                await telescopeMediator.Sync(solvedCenter);
+                await telescopeMediator.SlewToCoordinatesAsync(target, token);
+
+                if (iter == MaxCenteringIterations)
+                    Logger.Warning($"[GRB Capture] Reached max centering iterations — residual offset {sepArcsec:F1}\".");
             }
         }
 

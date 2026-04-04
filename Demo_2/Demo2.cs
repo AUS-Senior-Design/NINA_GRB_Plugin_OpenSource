@@ -88,30 +88,29 @@ namespace Sd.NINA.Demo2 {
 
 
         private Task ImageSaveMediator_BeforeImageSaved(object sender, BeforeImageSavedEventArgs e) {
-            // Insert the example FITS keyword of a specific data type into the image metadata object prior to the file being saved
-            // FITS keywords have a maximum of 8 characters. Comments are options. Comments that are too long will be truncated.
-
-            string exampleKeywordComment = "This is a {0} keyword";
-
-            // string
-            string exampleStringKeywordName = "STRKEYWD";
-            string exampleStringKeywordValue = "Example";
-            e.Image.MetaData.GenericHeaders.Add(new StringMetaDataHeader(exampleStringKeywordName, exampleStringKeywordValue, string.Format(exampleKeywordComment, "string")));
-
-            // integer
-            string exampleIntKeywordName = "INTKEYWD";
-            int exampleIntKeywordValue = 5;
-            e.Image.MetaData.GenericHeaders.Add(new IntMetaDataHeader(exampleIntKeywordName, exampleIntKeywordValue, string.Format(exampleKeywordComment, "integer")));
-
-            // double
-            string exampleDoubleKeywordName = "DBLKEYWD";
-            double exampleDoubleKeywordValue = 1.3d;
-            e.Image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader(exampleDoubleKeywordName, exampleDoubleKeywordValue, string.Format(exampleKeywordComment, "double")));
-
-            // Classes also exist for other data types:
-            // BoolMetaDataHeader()
-            // DateTimeMetaDataHeader()
-
+            // Inject GRB-specific FITS keywords into every image saved during a GRB observation.
+            // These keywords follow the IAU FITS standard (max 8 chars, no lowercase).
+            var grb = Services.GRBPendingState.LastCapturedGrb;
+            if (grb != null) {
+                e.Image.MetaData.GenericHeaders.Add(new StringMetaDataHeader(
+                    "GRBNAME", grb.Name ?? "UNKNOWN", "GRB name from GCN Circular"));
+                e.Image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader(
+                    "GRB_RA", grb.RA, "GRB right ascension (degrees, J2000)"));
+                e.Image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader(
+                    "GRB_DEC", grb.Dec, "GRB declination (degrees, J2000)"));
+                e.Image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader(
+                    "GRB_ERR", grb.Error, "GRB position error (arcmin)"));
+                e.Image.MetaData.GenericHeaders.Add(new StringMetaDataHeader(
+                    "GRBTEL", grb.SpaceTelescope ?? "UNKNOWN", "Space telescope that detected the GRB"));
+                e.Image.MetaData.GenericHeaders.Add(new StringMetaDataHeader(
+                    "GRBTRIG", grb.TriggerTime.ToString("yyyy-MM-ddTHH:mm:ss"), "GRB trigger time (UTC)"));
+                if (grb.Magnitude.HasValue)
+                    e.Image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader(
+                        "GRBMAG", grb.Magnitude.Value, "GRB optical magnitude from alert"));
+                if (grb.Flux.HasValue)
+                    e.Image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader(
+                        "GRBFLUX", grb.Flux.Value, "GRB X-ray flux (erg/cm2/s)"));
+            }
             return Task.CompletedTask;
         }
 
@@ -225,6 +224,57 @@ namespace Sd.NINA.Demo2 {
             }
         }
 
+
+        // ── Exposure settings (B) ─────────────────────────────────────────────────
+
+        public int ExposureCount {
+            get => Settings.Default.ExposureCount;
+            set { Settings.Default.ExposureCount = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
+
+        public double ExposureTime {
+            get => Settings.Default.ExposureTime;
+            set { Settings.Default.ExposureTime = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
+
+        public int Binning {
+            get => Settings.Default.Binning;
+            set { Settings.Default.Binning = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
+
+        // ── Moon / twilight settings (C) ──────────────────────────────────────────
+
+        public double AstroTwilight {
+            get => Settings.Default.AstroTwilight;
+            set { Settings.Default.AstroTwilight = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
+
+        public double MaxMoonAlt {
+            get => Settings.Default.MaxMoonAlt;
+            set { Settings.Default.MaxMoonAlt = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
+
+        public double MinMoonSep {
+            get => Settings.Default.MinMoonSep;
+            set { Settings.Default.MinMoonSep = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
+
+        public double MaxMoonPhase {
+            get => Settings.Default.MaxMoonPhase;
+            set { Settings.Default.MaxMoonPhase = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
+
+        public string SirilPath {
+            get => Settings.Default.SirilPath;
+            set { Settings.Default.SirilPath = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
+
+        // ── Observatory state settings ────────────────────────────────────────────
+
+        public int MaxWaitMinutes {
+            get => Settings.Default.MaxWaitMinutes;
+            set { Settings.Default.MaxWaitMinutes = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
+        }
 
         // Options ^^
 

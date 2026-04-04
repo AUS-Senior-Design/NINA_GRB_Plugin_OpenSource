@@ -48,53 +48,42 @@ namespace Sd.NINA.Demo2.Services {
 
         */
 
-        double minAlt = 10;                  // was 25 — near-horizon observing
-        double startAlt = 10;                // was 30 — match minAlt so window can always start
-        double decMin = -60;                 // was -40 — more southern sky
-        double decMax = 90;
-        double maxLocalUncertainty = 10.0;   // was 0.5 — accept poorly localized GRBs
-        double grbMaxAge = 500;              // was 20 — effectively disabled
-        double countRateThreshold = 0;       // was 3000 — accept any count rate
-        double flux1 = 1.0;
-        int flux2 = -15;                     // was -9 — threshold now 1e-15, extremely faint
-        double maxMag = 25;                  // was 20 — accept very faint optical counterparts
-        double snrThreshold = 1;             // was 5 — accept almost any signal
-        double minObsWindowHours = 0.1;      // was 0.5 — 6 minute minimum window
+        double minAlt      => Settings.Default.Altitude;
+        double startAlt    => Settings.Default.Altitude;   // start threshold matches min altitude
+        double decMin      => Settings.Default.DecMin;
+        double decMax      => Settings.Default.DecMax;
+        double maxLocalUncertainty => Settings.Default.MaxLocalUncertainty;
+        double grbMaxAge   => Settings.Default.GRB_age;
+        double countRateThreshold  => Settings.Default.CountRate;
+        double flux1       => Settings.Default.Flux_1;
+        int    flux2       => Settings.Default.Flux_2;
+        double maxMag      => Settings.Default.Mag;
+        double snrThreshold => Settings.Default.SNR;
+        double minObsWindowHours = 0.1;
 
-
-        // Insiyah: I need to add start ALT and min Obs Window into options
-
-        /*
-        double minAlt = Settings.Default.Altitude;           // minimum altitude during window (degrees)
-        double startAlt = 20;         // minimum altitude at window START (degrees)
-        double decMin = Settings.Default.DecMin;
-        double decMax = Settings.Default.DecMax;
-        double maxLocalUncertainty = Settings.Default.MaxLocalUncertainty;
-        double grbMaxAge = Settings.Default.GRB_age;
-        double countRateThreshold = Settings.Default.CountRate;  // cts/s
-        double flux1 = Settings.Default.Flux_1;
-        int flux2 = Settings.Default.Flux_2;               // flux threshold = 1.0e-9 erg/cm²/s
-        double maxMag = Settings.Default.Mag;
-        double snrThreshold = Settings.Default.SNR;
-        double minObsWindowHours = 0.25;  // minimum observable window duration og : 0.5
-
-        */
-
-        // Accepted space telescopes — only process alerts from these
-        readonly HashSet<string> allowedTelescopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "Swift", "Fermi", "Fermi/GBM", "Fermi/LAT", "INTEGRAL", "MAXI", "Insight-HXMT"
-        };
+        // Accepted space telescopes — built dynamically from the Options checkboxes.
+        // "OTHERS" is the catch-all value the Python parser writes for any unlisted telescope.
+        HashSet<string> allowedTelescopes {
+            get {
+                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (Settings.Default.isSwift) { set.Add("Swift"); set.Add("SWIFT"); }
+                if (Settings.Default.isEP)    { set.Add("EP"); set.Add("Einstein Probe"); }
+                if (Settings.Default.isFermi) { set.Add("Fermi"); set.Add("FERMI"); set.Add("Fermi/GBM"); set.Add("Fermi/LAT"); }
+                if (Settings.Default.isSVOM)  { set.Add("SVOM"); }
+                if (Settings.Default.isOther) { set.Add("OTHERS"); set.Add("INTEGRAL"); set.Add("MAXI"); set.Add("Insight-HXMT"); set.Add("IceCube"); set.Add("GECAM"); }
+                return set;
+            }
+        }
 
         // Track GRBs already observed by this observatory to avoid duplicates
         static readonly HashSet<string> alreadyObserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 
-        // should we add these in options too?
-        double astroTwilight = -6.0;   // Sun altitude in degrees *-* og: -16
-        double maxMoonAlt = 90.0;       // Max moon altitude allowed *-* og:65
-        double minMoonSep = 5.0;       // Min angular distance between Moon and GRB *-* og:45
-        double maxMoonPhase = 100.0;     // Percent illumination *-* og: 40.0
-        // changed it to 100 for testing purposes
+        // Moon / twilight thresholds — now read from Options (C)
+        double astroTwilight => Settings.Default.AstroTwilight;   // Sun altitude for darkness (degrees)
+        double maxMoonAlt    => Settings.Default.MaxMoonAlt;      // Maximum moon altitude (degrees)
+        double minMoonSep    => Settings.Default.MinMoonSep;      // Minimum moon–GRB separation (degrees)
+        double maxMoonPhase  => Settings.Default.MaxMoonPhase;    // Maximum moon illumination (%)
 
         public GRBObservabilityResult Evaluate(GRBEvent grb) {
 
@@ -124,12 +113,13 @@ namespace Sd.NINA.Demo2.Services {
 
             // 3rd Calculate Age if GRB is observable
             // age = obsStart - triggerTime
-            if (result.StartTime.HasValue) { //Start time will only have value if observable
+            if (result.StartTime.HasValue) {
                 double grbAgeHours = (result.StartTime.Value - grb.TriggerTime).TotalHours;
                 bool ageCheck = grbAgeHours <= grbMaxAge;
-
-                Console.WriteLine($"GRB age check (<= {grbMaxAge}h): {ageCheck} ({grbAgeHours:F2}h)");
+                Logger.Info($"[GRB Obs]   TriggerTime={grb.TriggerTime:HH:mm} UTC  WindowStart={result.StartTime.Value:HH:mm} UTC  Age={grbAgeHours:F1}h  Limit={grbMaxAge}h  AgeCheck={ageCheck}");
                 result.IsObservable = ageCheck;
+            } else {
+                Logger.Info($"[GRB Obs]   No observable window found in next 24h (lat={latitude:F2}, lon={longitude:F2})");
             }
 
             return result;
@@ -139,45 +129,40 @@ namespace Sd.NINA.Demo2.Services {
         private GRBObservabilityResult Static_Evaluate(GRBEvent grb) {
             var result = new GRBObservabilityResult();
 
-            Console.WriteLine("Static Evaluation Debug:");
+            Logger.Info($"[GRB Obs] Static check for {grb.Name}:");
 
-            // Space telescope filter
-            bool telescopeCheck = string.IsNullOrEmpty(grb.SpaceTelescope) ||
-                                   allowedTelescopes.Contains(grb.SpaceTelescope);
-            Console.WriteLine($"Telescope check ({grb.SpaceTelescope}): {telescopeCheck}");
+            // Space telescope filter — if the user checked "Other", accept any telescope not matched elsewhere
+            bool telescopeCheck = string.IsNullOrEmpty(grb.SpaceTelescope)
+                || allowedTelescopes.Contains(grb.SpaceTelescope)
+                || (Settings.Default.isOther && !new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                        { "Swift","SWIFT","EP","Einstein Probe","Fermi","FERMI","Fermi/GBM","Fermi/LAT","SVOM" }
+                        .Contains(grb.SpaceTelescope));
+            Logger.Info($"[GRB Obs]   Telescope ({grb.SpaceTelescope}): {telescopeCheck}");
 
-            // Already observed by this observatory?
             bool notAlreadyObserved = !alreadyObserved.Contains(grb.Name ?? "");
-            Console.WriteLine($"Not already observed ({grb.Name}): {notAlreadyObserved}");
+            Logger.Info($"[GRB Obs]   NotAlreadyObserved: {notAlreadyObserved}");
 
-
-            // Declination
             bool decCheck = grb.Dec >= decMin && grb.Dec <= decMax;
-            Console.WriteLine($"Dec check ({decMin}-{decMax}): {decCheck}");
+            Logger.Info($"[GRB Obs]   Dec {grb.Dec:F2} in [{decMin},{decMax}]: {decCheck}");
 
-
-            // Local Uncertainty
             bool errorCheck = grb.Error <= maxLocalUncertainty;
-            Console.WriteLine($"Error check (<= {maxLocalUncertainty}): {errorCheck}");
+            Logger.Info($"[GRB Obs]   Error {grb.Error:F1} <= {maxLocalUncertainty}: {errorCheck}");
 
-            // Count Rate
             bool countRateCheck = !grb.CountRate.HasValue || grb.CountRate >= countRateThreshold;
-            Console.WriteLine($"CountRate check (>= {countRateThreshold}): {countRateCheck} ({grb.CountRate})");
+            Logger.Info($"[GRB Obs]   CountRate {grb.CountRate} >= {countRateThreshold}: {countRateCheck}");
 
-            // Flux
             double fluxThreshold = flux1 * Math.Pow(10, flux2);
             bool fluxCheck = !grb.Flux.HasValue || grb.Flux >= fluxThreshold;
-            Console.WriteLine($"Flux check (>= {fluxThreshold:E2}): {fluxCheck} ({grb.Flux})");
+            Logger.Info($"[GRB Obs]   Flux {grb.Flux} >= {fluxThreshold:E2}: {fluxCheck}");
 
-            // Magnitude
             bool magCheck = !grb.Magnitude.HasValue || grb.Magnitude <= maxMag;
-            Console.WriteLine($"Magnitude check (>= {maxMag}): {magCheck} ({grb.Magnitude})");
+            Logger.Info($"[GRB Obs]   Mag {grb.Magnitude} <= {maxMag}: {magCheck}");
 
-            // SNR
             bool snrCheck = !grb.SNR.HasValue || grb.SNR >= snrThreshold;
-            Console.WriteLine($"SNR check (>= {snrThreshold}): {snrCheck} ({grb.SNR})");
+            Logger.Info($"[GRB Obs]   SNR {grb.SNR} >= {snrThreshold}: {snrCheck}");
 
             result.IsObservable = telescopeCheck && notAlreadyObserved && decCheck && errorCheck && countRateCheck && fluxCheck && magCheck && snrCheck;
+            Logger.Info($"[GRB Obs]   Static result: {result.IsObservable}");
 
             return result;
         }
@@ -187,6 +172,10 @@ namespace Sd.NINA.Demo2.Services {
             if (!string.IsNullOrEmpty(grbName))
                 alreadyObserved.Add(grbName);
         }
+
+        /// <summary>Returns true if this GRB has already been captured this session.</summary>
+        public static bool IsAlreadyObserved(string grbName) =>
+            !string.IsNullOrEmpty(grbName) && alreadyObserved.Contains(grbName);
 
         public GRBObservabilityResult GetNext24hObservabilityWindow(GRBEvent grb) {
 
@@ -257,15 +246,9 @@ namespace Sd.NINA.Demo2.Services {
                                        separation >= minMoonSep &&
                                        moonPhase <= maxMoonPhase;
 
-                // For Debugging Purposes
-                //Console.WriteLine(
-                //    $"Time: {currentTime:HH:mm} | " +
-                //    $"Alt: {alt:F1} | " +
-                //    $"SunAlt: {sunAlt:F1} | " +
-                //    $"MoonAlt: {moonAlt:F1} | " +
-                //    $"Sep: {separation:F1} | " +
-                //    $"Phase: {moonPhase:F1}"
-                //);
+                // Log every step where GRB is up and sky is dark, to diagnose moon failures
+                if (darkTime && sourceUp)
+                    Logger.Info($"[GRB Scan] {currentTime:HH:mm} UTC | Alt={alt:F1}° | MoonAlt={moonAlt:F1}° (max={maxMoonAlt}) | Sep={separation:F1}° (min={minMoonSep}) | Phase={moonPhase:F1}% (max={maxMoonPhase}) | MoonOK={moonConstraints}");
 
                 bool observable = darkTime && sourceUp && moonConstraints;
 

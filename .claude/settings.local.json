@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ilspycmd \"C:\\\\Users\\\\qusai\\\\.nuget\\\\packages\\\\nina.core\\\\3.0.0.2017-beta\\\\lib\\\\net8.0-windows7.0\\\\NINA.Core.dll\" -t \"NINA.Core.Interfaces.IMediator\\\\`1\")",
+      "Bash(dotnet build:*)",
+      "Bash(ilspycmd C:Usersqusai.nugetpackagesnina.equipment3.0.0.2017-betalibnet8.0-windows7.0NINA.Equipment.dll -t NINA.Equipment.Equipment.MyDome.DomeInfo)",
+      "Bash(ilspycmd C:Usersqusai.nugetpackagesnina.equipment3.0.0.2017-betalibnet8.0-windows7.0NINA.Equipment.dll -t NINA.Equipment.Equipment.MyDome.DomeInfo 2)",
+      "Bash(/dev/null ilspycmd:*)",
+      "Bash(ilspycmd C:Usersqusai.nugetpackagesnina.core3.0.0.2017-betalibnet8.0-windows7.0NINA.Core.dll -t NINA.Core.Enum.TrackingMode)",
+      "Bash(ilspycmd C:Usersqusai.nugetpackagesnina.core3.0.0.2017-betalibnet8.0-windows7.0NINA.Core.dll -t NINA.Astrometry.TrackingMode)"
+    ]
+  }
+}

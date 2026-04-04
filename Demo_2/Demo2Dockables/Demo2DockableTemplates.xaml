@@ -10,36 +10,118 @@
 
     <!--  The datatemplae for the dockable is indicated by the fully qualified class name and the postfix _Dockable  -->
     <DataTemplate x:Key="Sd.NINA.Demo2.Demo2Dockables.Demo2Dockable_Dockable">
-        <Grid Margin="5">
-            <Grid Visibility="{Binding Target, Converter={StaticResource NullToVisibilityCollapsedConverter}}">
-                <Grid.Resources>
-                    <util:BindingProxy x:Key="nighttimeProxy" Data="{Binding NighttimeData}" />
-                </Grid.Resources>
-                <alt:AltitudeChart
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Stretch"
-                    HorizontalContentAlignment="Stretch"
-                    VerticalContentAlignment="Stretch"
-                    AnnotateAltitudeAxis="False"
-                    AnnotateTimeAxis="False"
-                    DataContext="{Binding Target}"
-                    NighttimeData="{Binding Source={StaticResource nighttimeProxy}, Path=Data}" />
-            </Grid>
-            <Grid Visibility="{Binding TelescopeInfo.Connected, Converter={StaticResource InverseBooleanToVisibilityCollapsedConverter}}">
-                <TextBlock
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Text="Telescope not connected" />
-            </Grid>
-            <Grid Visibility="{Binding TelescopeInfo.Connected, Converter={StaticResource VisibilityConverter}}">
-                <Grid Visibility="{Binding TelescopeInfo.TrackingEnabled, Converter={StaticResource InverseBooleanToVisibilityCollapsedConverter}}">
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Text="Telescope not tracking" />
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="5">
+
+            <!-- ── GRB Status Dashboard ─────────────────────────────────────── -->
+            <Border BorderThickness="1" CornerRadius="4" Padding="8,6"
+                    Margin="0,0,0,8">
+                <Border.BorderBrush>
+                    <SolidColorBrush Color="#3C6FA0"/>
+                </Border.BorderBrush>
+                <Border.Background>
+                    <SolidColorBrush Color="#1A2A3A"/>
+                </Border.Background>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="auto"/>
+                        <RowDefinition Height="auto"/>
+                        <RowDefinition Height="auto"/>
+                        <RowDefinition Height="auto"/>
+                        <RowDefinition Height="auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Title row -->
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                               FontWeight="Bold" FontSize="13"
+                               Foreground="#7EC8E3"
+                               Text="GRB Monitor"
+                               Margin="0,0,0,6"/>
+
+                    <!-- Pending GRB indicator -->
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                               Foreground="#AAAAAA" VerticalAlignment="Center"
+                               Text="Pending GRB:"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Margin="4,0,4,0"
+                                 VerticalAlignment="Center">
+                            <Ellipse.Fill>
+                                <SolidColorBrush Color="{Binding HasPendingGrb,
+                                    Converter={StaticResource BooleanToStringConverter},
+                                    ConverterParameter=#00CC44|#555555}"/>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock Foreground="White" FontWeight="SemiBold"
+                                   Text="{Binding PendingGrbName}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Coords -->
+                    <TextBlock Grid.Row="2" Grid.Column="0"
+                               Foreground="#AAAAAA" VerticalAlignment="Center"
+                               Text="Coordinates:"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1"
+                               Foreground="#DDDDDD"
+                               Text="{Binding PendingGrbCoords}"/>
+
+                    <!-- Telescope -->
+                    <TextBlock Grid.Row="3" Grid.Column="0"
+                               Foreground="#AAAAAA" VerticalAlignment="Center"
+                               Text="Space Telescope:"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1"
+                               Foreground="#DDDDDD"
+                               Text="{Binding PendingGrbTel}"/>
+
+                    <!-- Last captured -->
+                    <TextBlock Grid.Row="4" Grid.Column="0"
+                               Foreground="#AAAAAA" VerticalAlignment="Center"
+                               Text="Last Captured:"/>
+                    <StackPanel Grid.Row="4" Grid.Column="1">
+                        <TextBlock Foreground="#DDDDDD" Text="{Binding LastCapturedName}"/>
+                        <TextBlock Foreground="#888888" FontSize="10"
+                                   Text="{Binding LastCapturedTime}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Update timestamp -->
+            <TextBlock HorizontalAlignment="Right" FontSize="10"
+                       Foreground="#666666" Margin="0,0,0,6"
+                       Text="{Binding StatusUpdatedAt}"/>
+
+            <!-- ── Altitude chart ────────────────────────────────────────────── -->
+            <Grid Height="220">
+                <Grid Visibility="{Binding Target, Converter={StaticResource NullToVisibilityCollapsedConverter}}">
+                    <Grid.Resources>
+                        <util:BindingProxy x:Key="nighttimeProxy" Data="{Binding NighttimeData}" />
+                    </Grid.Resources>
+                    <alt:AltitudeChart
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"
+                        AnnotateAltitudeAxis="False"
+                        AnnotateTimeAxis="False"
+                        DataContext="{Binding Target}"
+                        NighttimeData="{Binding Source={StaticResource nighttimeProxy}, Path=Data}" />
+                </Grid>
+                <Grid Visibility="{Binding TelescopeInfo.Connected, Converter={StaticResource InverseBooleanToVisibilityCollapsedConverter}}">
+                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="#AAAAAA" Text="Telescope not connected" />
+                </Grid>
+                <Grid Visibility="{Binding TelescopeInfo.Connected, Converter={StaticResource VisibilityConverter}}">
+                    <Grid Visibility="{Binding TelescopeInfo.TrackingEnabled, Converter={StaticResource InverseBooleanToVisibilityCollapsedConverter}}">
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#AAAAAA" Text="Telescope not tracking" />
+                    </Grid>
                 </Grid>
             </Grid>
-        </Grid>
+
+        </StackPanel>
+        </ScrollViewer>
     </DataTemplate>
 
     <!--  This geometrygroup defines a custom SVG to be used with the plugin dockable  -->

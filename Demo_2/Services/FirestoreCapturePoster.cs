@@ -33,7 +33,12 @@ namespace Sd.NINA.Demo2.Services {
             }
         }
 
-        public static async Task PostCaptureAsync(GRBEvent grb, int exposureCount, int exposureSeconds) {
+        /// <param name="fitsDirectory">
+        /// The actual folder where NINA saved the FITS files.
+        /// Pass profileService.ActiveProfile.ImageFileSettings.FilePath from GRBCaptureInstruction
+        /// so image_analyzer.py finds the right folder. Falls back to Documents\N.I.N.A if null.
+        /// </param>
+        public static async Task PostCaptureAsync(GRBEvent grb, int exposureCount, int exposureSeconds, string fitsDirectory = null) {
             if (_credential == null || string.IsNullOrEmpty(_projectId)) {
                 Logger.Warning("[GRB Poster] Not initialized — skipping Firestore post.");
                 return;
@@ -45,11 +50,13 @@ namespace Sd.NINA.Demo2.Services {
                 string url = "https://firestore.googleapis.com/v1/projects/" + _projectId
                            + "/databases/(default)/documents/grb_captures";
 
-                // NINA saves images to Documents\N.I.N.A\{date} — pass today's folder
-                string fitsDir = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "N.I.N.A",
-                    DateTime.UtcNow.ToString("yyyy-MM-dd"));
+                // Use the real NINA save path if provided, otherwise fall back to default
+                string fitsDir = !string.IsNullOrEmpty(fitsDirectory)
+                    ? fitsDirectory
+                    : System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                        "N.I.N.A",
+                        DateTime.UtcNow.ToString("yyyy-MM-dd"));
 
                 var body = new JObject {
                     ["fields"] = new JObject {
@@ -192,6 +199,46 @@ namespace Sd.NINA.Demo2.Services {
 
             } catch (Exception ex) {
                 Logger.Error("[GRB Poster] Failed to post to observable_list: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Posts a record to grb_captures with status="skipped" and the reason why
+        /// the GRB could not be observed (e.g. safety unsafe, shutter timeout).
+        /// This lets the Python image_analyzer and any dashboards see missed events.
+        /// </summary>
+        public static async Task PostSkippedAsync(GRBEvent grb, string reason) {
+            if (_credential == null || string.IsNullOrEmpty(_projectId)) return;
+            try {
+                string accessToken = await _credential.UnderlyingCredential
+                    .GetAccessTokenForRequestAsync();
+
+                string url = "https://firestore.googleapis.com/v1/projects/" + _projectId
+                           + "/databases/(default)/documents/grb_captures";
+
+                var body = new JObject {
+                    ["fields"] = new JObject {
+                        ["grb_name"]       = new JObject { ["stringValue"]  = grb.Name },
+                        ["ra_deg"]         = new JObject { ["doubleValue"]  = grb.RA },
+                        ["dec_deg"]        = new JObject { ["doubleValue"]  = grb.Dec },
+                        ["capture_time"]   = new JObject { ["stringValue"]  = DateTime.UtcNow.ToString("o") },
+                        ["status"]         = new JObject { ["stringValue"]  = "skipped" },
+                        ["skip_reason"]    = new JObject { ["stringValue"]  = reason }
+                    }
+                };
+
+                var request = new HttpRequestMessage(HttpMethod.Post, url) {
+                    Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json")
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                var response = await _http.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                    Logger.Info("[GRB Poster] Posted skipped record for " + grb.Name + ": " + reason);
+                else
+                    Logger.Warning("[GRB Poster] HTTP " + response.StatusCode + " posting skip for " + grb.Name);
+            } catch (Exception ex) {
+                Logger.Error("[GRB Poster] Failed to post skip record: " + ex.Message);
             }
         }
 
