@@ -43,15 +43,37 @@ Modification: Added more options based on word doc
                 <RowDefinition Height="auto" />
                 <RowDefinition Height="auto" />
                 <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <TextBlock 
+
+            <!-- ── Separator ───────────────────────────────────────────────────── -->
+            <TextBlock
                 Grid.Row="0"
+                Grid.Column="0"
+                Grid.ColumnSpan="3"
+                Margin="0,10,0,4"
+                FontWeight="Bold"
+                Text="General Settings"/>
+
+            <!-- ── Observatory Constraints ───────────────────────────────────────────────────── -->
+            <TextBlock
+                Grid.Row="3"
+                Grid.Column="0"
+                Grid.ColumnSpan="3"
+                Margin="0,10,0,4"
+                FontWeight="Bold"
+                Text="Observatory Constraints"/>
+
+            <!-- ── Declination ───────────────────────────────────────────────────── -->
+            <TextBlock 
+                Grid.Row="4"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Dec between" />
             <StackPanel
-                Grid.Row="0"
+                Grid.Row="4"
                 Grid.Column="1"
                 Margin="10,0,0,0"
                 Orientation="Horizontal"
@@ -70,14 +92,15 @@ Modification: Added more options based on word doc
                 Text="{Binding DecMax}"
                 Unit="deg" />
             </StackPanel>
-            
+
+            <!-- ── Localization Uncertainty ───────────────────────────────────────────────────── -->
             <TextBlock 
-                Grid.Row="1"
+                Grid.Row="5"
                 Grid.Column="0"            
                 VerticalAlignment="Center"
                 Text="Max. localization Uncertainty" />
             <ninactrl:UnitTextBox 
-                Grid.Row="1"
+                Grid.Row="5"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -85,6 +108,7 @@ Modification: Added more options based on word doc
                 ToolTip="Maximum allowed position uncertainty. Targets exceeding this value will be skipped."
                 Unit="arcmins" />
 
+            <!-- ── Observatory Code ───────────────────────────────────────────────────── -->
             <TextBlock 
                 Grid.Row="2"
                 Grid.Column="0"
@@ -100,12 +124,12 @@ Modification: Added more options based on word doc
                 Text="{Binding ObservatoryCode}" />
 
             <TextBlock 
-                Grid.Row="3"             
+                Grid.Row="6"             
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="GRB Age less than "/>
             <ninactrl:UnitTextBox 
-                Grid.Row="3"
+                Grid.Row="6"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -114,12 +138,12 @@ Modification: Added more options based on word doc
                 Unit="hours" />
 
             <TextBlock 
-                Grid.Row="4"             
+                Grid.Row="9"             
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Count Rate greater than"/>
             <ninactrl:UnitTextBox 
-                Grid.Row="4"
+                Grid.Row="9"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -127,19 +151,19 @@ Modification: Added more options based on word doc
                 ToolTip="Filters time bins where the background-subtracted count rate exceeds the selected threshold (counts/s)."
                 Unit="counts/sec" />
             <TextBlock
-                Grid.Row="4"
+                Grid.Row="9"
                 Grid.Column="2"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Center"
                 Text="(if not available ignore this parameter)"/>
             
             <TextBlock 
-                Grid.Row="5"             
+                Grid.Row="10"             
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Flux greater than (erg/cm²/s)"/>
             <StackPanel
-                Grid.Row="5"
+                Grid.Row="10"
                 Grid.Column="1"
                 Margin="10,0,0,0"
                 Orientation="Horizontal"
@@ -160,7 +184,7 @@ Modification: Added more options based on word doc
                 Unit="erg/cm²/s" />
             </StackPanel>
             <TextBlock
-                Grid.Row="5"
+                Grid.Row="10"
                 Grid.Column="2"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Center"
@@ -168,12 +192,12 @@ Modification: Added more options based on word doc
                 
 
             <TextBlock 
-                Grid.Row="6"             
+                Grid.Row="11"             
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="SNR greater than"/>
             <ninactrl:UnitTextBox 
-                Grid.Row="6"
+                Grid.Row="11"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -181,7 +205,7 @@ Modification: Added more options based on word doc
                 ToolTip="Filters intervals where the signal-to-noise ratio (SNR) exceeds the selected threshold, highlighting statistically significant emission."
                 Unit="" />
             <TextBlock
-                Grid.Row="6"
+                Grid.Row="11"
                 Grid.Column="2"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Center"
@@ -217,12 +241,12 @@ Modification: Added more options based on word doc
                 Unit="" />
             
             <TextBlock 
-                Grid.Row="9"
+                Grid.Row="1"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Profile Selected" />
             <ComboBox
-                Grid.Row="9"
+                Grid.Row="1"
                 Grid.Column="1"                
                 Height="25"
                 MinWidth="70"
@@ -235,12 +259,12 @@ Modification: Added more options based on word doc
             </ComboBox>
             
             <TextBlock
-                Grid.Row="10"
+                Grid.Row="12"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Space Telescope"/>
             <StackPanel
-                Grid.Row="10"
+                Grid.Row="12"
                 Grid.Column="1"
                 Margin="10,0,0,0"
                 Orientation="Horizontal"
@@ -264,7 +288,7 @@ Modification: Added more options based on word doc
 
             <!-- ── Separator ───────────────────────────────────────────────────── -->
             <TextBlock
-                Grid.Row="11"
+                Grid.Row="13"
                 Grid.Column="0"
                 Grid.ColumnSpan="3"
                 Margin="0,10,0,4"
@@ -273,12 +297,12 @@ Modification: Added more options based on word doc
 
             <!-- B: Exposure count -->
             <TextBlock
-                Grid.Row="12"
+                Grid.Row="14"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Exposure Count"/>
             <ninactrl:UnitTextBox
-                Grid.Row="12"
+                Grid.Row="14"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -288,12 +312,12 @@ Modification: Added more options based on word doc
 
             <!-- B: Exposure time -->
             <TextBlock
-                Grid.Row="13"
+                Grid.Row="15"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Exposure Time"/>
             <ninactrl:UnitTextBox
-                Grid.Row="13"
+                Grid.Row="15"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -303,12 +327,12 @@ Modification: Added more options based on word doc
 
             <!-- B: Binning -->
             <TextBlock
-                Grid.Row="14"
+                Grid.Row="16"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Binning"/>
             <ninactrl:UnitTextBox
-                Grid.Row="14"
+                Grid.Row="16"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -318,7 +342,7 @@ Modification: Added more options based on word doc
 
             <!-- ── Separator ───────────────────────────────────────────────────── -->
             <TextBlock
-                Grid.Row="15"
+                Grid.Row="18"
                 Grid.Column="0"
                 Grid.ColumnSpan="3"
                 Margin="0,10,0,4"
@@ -327,12 +351,12 @@ Modification: Added more options based on word doc
 
             <!-- C: Twilight -->
             <TextBlock
-                Grid.Row="16"
+                Grid.Row="18"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Twilight (Sun alt &lt;)"/>
             <ninactrl:UnitTextBox
-                Grid.Row="16"
+                Grid.Row="18"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -342,12 +366,12 @@ Modification: Added more options based on word doc
 
             <!-- C: Moon altitude -->
             <TextBlock
-                Grid.Row="17"
+                Grid.Row="19"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Max Moon Altitude"/>
             <ninactrl:UnitTextBox
-                Grid.Row="17"
+                Grid.Row="19"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -357,12 +381,12 @@ Modification: Added more options based on word doc
 
             <!-- C: Moon separation -->
             <TextBlock
-                Grid.Row="18"
+                Grid.Row="20"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Min Moon Separation"/>
             <ninactrl:UnitTextBox
-                Grid.Row="18"
+                Grid.Row="20"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -372,12 +396,12 @@ Modification: Added more options based on word doc
 
             <!-- C: Moon phase -->
             <TextBlock
-                Grid.Row="19"
+                Grid.Row="21"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Max Moon Phase"/>
             <ninactrl:UnitTextBox
-                Grid.Row="19"
+                Grid.Row="21"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -387,7 +411,7 @@ Modification: Added more options based on word doc
 
             <!-- ── Separator ───────────────────────────────────────────────────── -->
             <TextBlock
-                Grid.Row="20"
+                Grid.Row="22"
                 Grid.Column="0"
                 Grid.ColumnSpan="3"
                 Margin="0,10,0,4"
@@ -395,12 +419,12 @@ Modification: Added more options based on word doc
                 Text="Post-Capture"/>
 
             <TextBlock
-                Grid.Row="21"
+                Grid.Row="23"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Siril Executable Path"/>
             <TextBox
-                Grid.Row="21"
+                Grid.Row="23"
                 Grid.Column="1"
                 Grid.ColumnSpan="2"
                 Margin="10,5,0,0"
@@ -411,7 +435,7 @@ Modification: Added more options based on word doc
 
             <!-- ── Separator ───────────────────────────────────────────────────── -->
             <TextBlock
-                Grid.Row="22"
+                Grid.Row="24"
                 Grid.Column="0"
                 Grid.ColumnSpan="3"
                 Margin="0,10,0,4"
@@ -420,12 +444,12 @@ Modification: Added more options based on word doc
 
             <!-- Max camera wait threshold -->
             <TextBlock
-                Grid.Row="23"
+                Grid.Row="25"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Text="Max Camera Wait"/>
             <ninactrl:UnitTextBox
-                Grid.Row="23"
+                Grid.Row="25"
                 Grid.Column="1"
                 Margin="10,5,0,0"
                 HorizontalAlignment="Left"
@@ -433,7 +457,7 @@ Modification: Added more options based on word doc
                 ToolTip="If the camera is exposing when a GRB fires, wait this many minutes for it to finish. If it is still busy after this time, the current exposure is interrupted and the GRB is captured immediately."
                 Unit="min"/>
             <TextBlock
-                Grid.Row="23"
+                Grid.Row="25"
                 Grid.Column="2"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Center"
@@ -443,123 +467,3 @@ Modification: Added more options based on word doc
     </DataTemplate>
 </ResourceDictionary>
 
-<!--<TextBlock 
-                Grid.Row="4"
-                Grid.Column="0"
-                VerticalAlignment="Center"
-                Text="Expand inserted templates" />
-            <CheckBox
-                Grid.Row="4"
-                Grid.Column="1"
-                MinWidth="80"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Center"
-                Margin="0,5,0,0"
-                ToolTip="Control if new templates inserted on the sequencer are shown expanded or colapsed."
-                IsChecked="{Binding AutoExpandTemplates}" />
-            <TextBlock 
-                Grid.Row="5"
-                Grid.Column="0"
-                VerticalAlignment="Center"
-                Text="V between" />
-            <StackPanel
-                Grid.Row="5"
-                Grid.Column="1"
-                Margin="10,0,0,0"
-                Orientation="Horizontal"
-                HorizontalAlignment="Left">
-                <ninactrl:UnitTextBox 
-                    Margin="0,5,0,0"
-                    HorizontalAlignment="Left"
-                    Text="{Binding MagBright}"
-                    Unit="mag" />
-                <TextBlock 
-                    VerticalAlignment="Center"
-                    Text=" and " />
-                <ninactrl:UnitTextBox 
-                    Margin="0,5,0,0"
-                    HorizontalAlignment="Left"
-                    Text="{Binding MagFaint}"
-                    Unit="mag" />
-            </StackPanel>
-
-            <TextBlock 
-                Grid.Row="6"
-                Grid.Column="0"
-                VerticalAlignment="Center"
-                Text="Score between" />
-            <StackPanel
-                Grid.Row="6"
-                Grid.Column="1"
-                Margin="10,0,0,0"
-                Orientation="Horizontal"
-                HorizontalAlignment="Left">
-                <ninactrl:UnitTextBox 
-                    Margin="0,5,0,0"
-                    HorizontalAlignment="Left"
-                    Text="{Binding ScoreLow}"
-                    Unit="%" />
-                <TextBlock 
-                    VerticalAlignment="Center"
-                    Text=" and " />
-                <ninactrl:UnitTextBox 
-                    Margin="0,5,0,0"
-                    HorizontalAlignment="Left"
-                    Text="{Binding ScoreHigh}"
-                    Unit="%" />
-            </StackPanel>-->
-
-<!--            <TextBlock 
-                Grid.Row="8"
-                Grid.Column="0"
-                VerticalAlignment="Center"
-                Text="NEO target prefix" />
-    <TextBox 
-                Grid.Row="8"
-                Grid.Column="1"
-                HorizontalAlignment="Left"
-                Width="70"
-                Margin="10,5,0,0"
-                ToolTip="The name used for the template clones inserted on the sequencer."
-                Text="{Binding TargetPrefix}" /> -->
-    
-           <!--<TextBlock 
-                Grid.Row="2"
-                Grid.Column="0"
-                Text="Sensor area used"
-                VerticalAlignment="Center" />
-            <StackPanel
-                Grid.Row="2"
-                Grid.Column="1"
-                Margin="4,0,0,0"
-                Orientation="Horizontal"
-                HorizontalAlignment="Left">
-                <Slider 
-                VerticalAlignment="Center"
-                IsSnapToTickEnabled="True"
-                Maximum="1.20"
-                Minimum="0.50"
-                TickFrequency="0.05"
-                ToolTip="Percentaje of the dimensions of the sensor used to compute the maximum integration time"
-                Value="{Binding SensorAreaUsage, UpdateSourceTrigger=PropertyChanged}" />
-                <TextBlock
-                Margin="5,0,0,0"    
-                VerticalAlignment="Center"
-                Text="{Binding SensorAreaUsage, Mode=OneWay, Converter={StaticResource PercentageConverter}}" />
-                <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" Text="%" />
-            </StackPanel>-->
-
-<!--<TextBlock 
-    Grid.Row="7"
-    Grid.Column="0"
-    VerticalAlignment="Center"
-    Text="Force skip on failure" />
-<CheckBox
-    Grid.Row="7"
-    Grid.Column="1"
-    MinWidth="80"
-    HorizontalAlignment="Left"
-    VerticalAlignment="Center"
-    Margin="0,5,0,0"
-    ToolTip="When the UpdateNEOEphemerides fails, it's not safe to keep with the old data. You can force this &quot;skip on failure&quot; to avoid wasting observation time."
-    IsChecked="{Binding ForceSkipOnFailure}" />-->
