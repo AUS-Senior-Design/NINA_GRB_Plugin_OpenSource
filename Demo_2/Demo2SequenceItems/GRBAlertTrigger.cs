@@ -40,8 +40,23 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
             };
         }
 
+        // halla: when the sequence starts, tell Loop 2 it's safe to queue GRBs
+        public override void Initialize() {
+            base.Initialize();
+            GRBSequenceState.IsSequenceRunning = true;
+            Logger.Info("[GRB Trigger] Sequence started — GRB queuing enabled.");
+        }
+
+        // halla: when the sequence stops, prevent Loop 2 from queuing anything
+        public override void Teardown() {
+            base.Teardown();
+            GRBSequenceState.IsSequenceRunning = false;
+            Logger.Info("[GRB Trigger] Sequence stopped — GRB queuing disabled.");
+        }
+
         /// <summary>Returns true when FirestoreGrbListener has queued a new GRB alert.</summary>
         public override bool ShouldTrigger(ISequenceItem previousItem, ISequenceItem nextItem) {
+            GRBSequenceState.IsSequenceRunning = true;
             return GRBPendingState.PendingGrb != null;
         }
 
@@ -56,10 +71,6 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
 
         public override string ToString() {
             return $"Category: {Category}, Item: {nameof(GRBAlertTrigger)}";
-        }
-
-        public override void Teardown() {
-            base.Teardown();
         }
     }
 }
