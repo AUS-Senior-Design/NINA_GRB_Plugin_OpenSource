@@ -131,7 +131,7 @@ namespace Sd.NINA.Demo2.Services {
                     ["site_long"] = new JObject { ["doubleValue"] = siteLon },
                     ["mpc_code"] = new JObject { ["stringValue"] = mpcCode ?? "" },
                     ["recorded_at"] = new JObject { ["stringValue"] = DateTime.UtcNow.ToString("o") },
-                    ["status"] = new JObject { ["stringValue"] = "observable" }
+                    ["status"] = new JObject { ["stringValue"] = "pending" }
                 };
 
                 var body = new JObject { ["fields"] = fields };

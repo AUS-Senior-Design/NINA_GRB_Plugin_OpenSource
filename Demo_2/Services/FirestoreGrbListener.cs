@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Sd.NINA.Demo2.Properties;
@@ -197,7 +198,6 @@ namespace Sd.NINA.Demo2.Services {
                 }
 
                 // ── Fingerprint check — only re-evaluate when email merge changes the doc ──
-                // Sort fields by key before fingerprinting to avoid false changes from JSON field ordering.
                 var fieldsObj = doc["fields"] as JObject;
                 string docFingerprint = fieldsObj != null
                     ? new JObject(fieldsObj.Properties().OrderBy(p => p.Name))
@@ -214,20 +214,15 @@ namespace Sd.NINA.Demo2.Services {
                                     && (DateTime.UtcNow - lastCheck).TotalSeconds >= NotObservableRecheckSeconds;
 
                 if (!fingerprintChanged && !forceRecheck) {
-                    // Doc unchanged and not due for a recheck — nothing to do
                     continue;
                 }
 
-                // Distinguish new alert vs email merge (refined data for same GRB)
-                // isMergedUpdate is true only when content actually changed — not on a forced recheck
                 bool isMergedUpdate = isKnownGrb && fingerprintChanged;
 
-                // Only update the stored fingerprint when content actually changed
                 if (fingerprintChanged)
                     lastSeenDataByGrbName[grb.Name] = docFingerprint;
 
-                // If doc changed, the email merge may have improved coordinates/data —
-                // allow re-posting to observable_list even if we posted before
+                // If doc changed, allow re-posting to observable_list even if we posted before
                 _postedToObservableList.Remove(grb.Name);
 
                 string alertTag = isMergedUpdate ? "UPDATED" : "NEW";
@@ -247,7 +242,6 @@ namespace Sd.NINA.Demo2.Services {
                     }
 
                     if (!obsResult.IsObservable) {
-                        // Only notify if this is new content (fingerprint changed or first time) or a forced recheck
                         bool shouldNotify = fingerprintChanged
                                             || !_lastNotObservableCheck.ContainsKey(grb.Name)
                                             || forceRecheck;
@@ -259,12 +253,11 @@ namespace Sd.NINA.Demo2.Services {
                             string notObsMsg = isMergedUpdate
                                 ? $"GRB {grb.Name}: refined alert received but still not observable — check log."
                                 : $"GRB {grb.Name}: new alert received but not observable — check log.";
-                            Notification.ShowWarning(notObsMsg);
+                            // Notification.ShowWarning(notObsMsg);
                         }
                         continue;
                     }
 
-                    // Already posted to observable_list this session (and doc hasn't changed since) — skip re-post
                     if (_postedToObservableList.Contains(grb.Name)) {
                         Logger.Info($"[GRB Listener] {grb.Name} already in observable_list — skipping re-post.");
                         continue;
@@ -281,6 +274,8 @@ namespace Sd.NINA.Demo2.Services {
                         : $"GRB {grb.Name}: OBSERVABLE! Window: {windowStr} — waiting for window to open.";
                     Notification.ShowInformation(obsMsg);
 
+                    // Insiyah: If observable we are storing the grb event into the collection: observable_list
+                    // also stored: observable window, site_lat and site_long, MPC
                     _ = FirestoreCapturePoster.PostObservableAlertAsync(
                             grb,
                             obsResult,
@@ -288,6 +283,7 @@ namespace Sd.NINA.Demo2.Services {
                             _profileService.ActiveProfile.AstrometrySettings.Longitude,
                             Settings.Default.ObservatoryCode
                         );
+                    //--------------------------------------------------------------
 
                     _postedToObservableList.Add(grb.Name);
 
@@ -318,6 +314,13 @@ namespace Sd.NINA.Demo2.Services {
         }
 
         private async Task QueuePollOnceAsync(HttpClient httpClient, CancellationToken token) {
+            // halla: if the sequence isn't running, there's nothing to receive a queued GRB —
+            // skip the entire poll so we never set GRBPendingState while NINA is idle.
+            if (!GRBSequenceState.IsSequenceRunning) {
+                Logger.Info("[GRB Queue] Sequence not running — skipping queue poll.");
+                return;
+            }
+
             string accessToken = await _credential.UnderlyingCredential
                 .GetAccessTokenForRequestAsync(cancellationToken: token);
 
@@ -340,8 +343,7 @@ namespace Sd.NINA.Demo2.Services {
                 return;
             }
 
-            // halla: parse each doc into a (GRBEvent, startTime, endTime, docName) tuple,
-            // then pick the one with the earliest EndTime (earliest deadline first)
+            // halla: parse each doc, but only include ones whose status is "pending"
             var candidates = new List<(GRBEvent grb, DateTime startTime, DateTime endTime, string docName)>();
 
             foreach (var doc in documents) {
@@ -349,6 +351,13 @@ namespace Sd.NINA.Demo2.Services {
                     string docName = doc["name"]?.ToString();
                     var fields = doc["fields"] as JObject;
                     if (fields == null || string.IsNullOrEmpty(docName)) continue;
+
+                    // halla: skip anything that isn't "pending" — like "queued" or "expired"
+                    string currentStatus = fields["status"]?["stringValue"]?.ToString();
+                    if (!string.Equals(currentStatus, "pending", StringComparison.OrdinalIgnoreCase)) {
+                        Logger.Info($"[GRB Queue] Skipping doc with status '{currentStatus}': {docName}");
+                        continue;
+                    }
 
                     string windowStartStr = fields["window_start"]?["stringValue"]?.ToString();
                     string windowEndStr = fields["window_end"]?["stringValue"]?.ToString();
@@ -365,7 +374,10 @@ namespace Sd.NINA.Demo2.Services {
                 }
             }
 
-            if (candidates.Count == 0) return;
+            if (candidates.Count == 0) {
+                Logger.Info("[GRB Queue] No pending candidates found.");
+                return;
+            }
 
             // halla: earliest deadline first — pick the candidate whose window ends soonest
             var earliest = candidates.OrderBy(c => c.endTime).First();
@@ -374,19 +386,18 @@ namespace Sd.NINA.Demo2.Services {
 
             if (now >= earliest.startTime && now < earliest.endTime) {
                 // Skip if already captured this session
-                if (GRBObservabilityService.IsAlreadyObserved(earliest.grb.Name)) {
-                    Logger.Info($"[GRB Queue] {earliest.grb.Name} already captured — removing stale observable_list entry.");
-                    await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
-                    return;
-                }
+                //if (GRBObservabilityService.IsAlreadyObserved(earliest.grb.Name)) {
+                //    Logger.Info($"[GRB Queue] {earliest.grb.Name} already captured this session — skipping.");
+                //    return;
+                //}
 
                 // Skip if this GRB is already sitting in the pending slot
-                if (GRBPendingState.PendingGrb?.Name?.Equals(earliest.grb.Name, StringComparison.OrdinalIgnoreCase) == true) {
-                    Logger.Info($"[GRB Queue] {earliest.grb.Name} already pending — skipping re-queue.");
-                    return;
-                }
+                //if (GRBPendingState.PendingGrb?.Name?.Equals(earliest.grb.Name, StringComparison.OrdinalIgnoreCase) == true) {
+                //    Logger.Info($"[GRB Queue] {earliest.grb.Name} already pending — skipping re-queue.");
+                //    return;
+                //}
 
-                // halla: window is active — queue the GRB for capture
+                // halla: window is active AND sequence is running — queue the GRB for capture
                 GRBPendingState.PendingGrb = earliest.grb;
                 Logger.Info($"[GRB Queue] Window active — queued {earliest.grb.Name} " +
                             $"(window {earliest.startTime:HH:mm}–{earliest.endTime:HH:mm} UTC)");
@@ -395,37 +406,70 @@ namespace Sd.NINA.Demo2.Services {
                     $"RA={earliest.grb.RA:F2}°  Dec={earliest.grb.Dec:F2}°  " +
                     $"ends {earliest.endTime:HH:mm} UTC");
 
-                // halla: remove from observable_list so it doesn't get queued again
-                await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
+                // halla: update status to "queued" instead of deleting the doc
+                // await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
+                await UpdateObservableListStatusAsync(httpClient, accessToken, earliest.docName, "queued");
 
             } else if (now < earliest.startTime) {
                 // halla: window hasn't opened yet — just log and wait
                 Logger.Info($"[GRB Queue] Next GRB is {earliest.grb.Name} — " +
                             $"window opens at {earliest.startTime:HH:mm} UTC, not yet.");
             } else {
-                // halla: window has already expired — remove the stale doc and log it
+                // halla: window has already expired — update status to "expired" instead of deleting
                 Logger.Warning($"[GRB Queue] Window for {earliest.grb.Name} has expired " +
-                               $"(ended {earliest.endTime:HH:mm} UTC) — removing from observable_list.");
-                await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
+                               $"(ended {earliest.endTime:HH:mm} UTC) — marking as expired.");
+                // await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
+                await UpdateObservableListStatusAsync(httpClient, accessToken, earliest.docName, "expired");
             }
         }
 
-        // halla: deletes a document from observable_list by its full Firestore resource name
-        private async Task DeleteObservableListDocAsync(HttpClient httpClient, string accessToken, string docName) {
+        // halla: updates only the "status" field of a document in observable_list.
+        // uses PATCH with an updateMask so no other fields are touched.
+        // only called when the current status is confirmed "pending" (checked before this point).
+        private async Task UpdateObservableListStatusAsync(
+                HttpClient httpClient, string accessToken, string docName, string newStatus) {
             try {
-                string deleteUrl = "https://firestore.googleapis.com/v1/" + docName;
-                var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, deleteUrl);
-                deleteRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                var deleteResponse = await httpClient.SendAsync(deleteRequest);
-                if (deleteResponse.IsSuccessStatusCode)
-                    Logger.Info("[GRB Queue] Removed from observable_list: " + docName);
+                string patchUrl = "https://firestore.googleapis.com/v1/" + docName
+                                + "?updateMask.fieldPaths=status";
+
+                var body = new JObject {
+                    ["fields"] = new JObject {
+                        ["status"] = new JObject { ["stringValue"] = newStatus }
+                    }
+                };
+
+                var patchRequest = new HttpRequestMessage(new HttpMethod("PATCH"), patchUrl) {
+                    Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json")
+                };
+                patchRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                var patchResponse = await httpClient.SendAsync(patchRequest);
+                if (patchResponse.IsSuccessStatusCode)
+                    Logger.Info($"[GRB Queue] Status updated to '{newStatus}' for: {docName}");
                 else
-                    Logger.Warning("[GRB Queue] HTTP " + deleteResponse.StatusCode
-                                 + " deleting from observable_list: " + docName);
+                    Logger.Warning($"[GRB Queue] HTTP {patchResponse.StatusCode} " +
+                                   $"updating status to '{newStatus}' for: {docName}");
             } catch (Exception ex) {
-                Logger.Error("[GRB Queue] Failed to delete from observable_list: " + ex.Message);
+                Logger.Error($"[GRB Queue] Failed to update status for {docName}: " + ex.Message);
             }
         }
+
+        // halla: kept for reference — replaced by UpdateObservableListStatusAsync
+        // private async Task DeleteObservableListDocAsync(HttpClient httpClient, string accessToken, string docName) {
+        //     try {
+        //         string deleteUrl = "https://firestore.googleapis.com/v1/" + docName;
+        //         var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, deleteUrl);
+        //         deleteRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        //         var deleteResponse = await httpClient.SendAsync(deleteRequest);
+        //         if (deleteResponse.IsSuccessStatusCode)
+        //             Logger.Info("[GRB Queue] Removed from observable_list: " + docName);
+        //         else
+        //             Logger.Warning("[GRB Queue] HTTP " + deleteResponse.StatusCode
+        //                          + " deleting from observable_list: " + docName);
+        //     } catch (Exception ex) {
+        //         Logger.Error("[GRB Queue] Failed to delete from observable_list: " + ex.Message);
+        //     }
+        // }
 
         // ── Shared helpers ────────────────────────────────────────────────────────
 
