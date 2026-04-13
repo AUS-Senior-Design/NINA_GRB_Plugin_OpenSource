@@ -2,6 +2,7 @@ from datetime import datetime
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
@@ -40,7 +41,7 @@ def get_grb_by_field(field, field_value, collection_name = "grb_alerts"):
     Returns: List of dicts containing the GRB records that match the given date code.
     """
     db = get_firestore_client()
-    query = db.collection(collection_name).where(field, "==", field_value)
+    query = db.collection(collection_name).where(filter=FieldFilter(field, "==", field_value))
     results = []
     for doc in query.stream():
         data = doc.to_dict()
