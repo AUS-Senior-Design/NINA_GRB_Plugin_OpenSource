@@ -21,7 +21,7 @@ import urllib.request
 import json
 from firebase_client import push_grb_to_firestore, get_firestore_client, get_grb_by_field
 
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
 
 
 # =======================
