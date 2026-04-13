@@ -70,10 +70,16 @@ namespace Sd.NINA.Demo2.Services {
             string grbName, IProgress<ApplicationStatus> progress, CancellationToken token) {
 
             // ── 1. Safety monitor ─────────────────────────────────────────────
+            // Poll until the monitor is BOTH connected AND safe.
+            // Disconnected = unknown = not safe — we wait rather than proceeding blind.
             var safetyInfo = _safety.GetInfo();
-            if (safetyInfo.Connected && !safetyInfo.IsSafe) {
-                Notification.ShowWarning($"GRB {grbName}: safety monitor UNSAFE — skipping.");
-                return Skip("Safety monitor reports UNSAFE — shutter will not be opened.");
+            if (!safetyInfo.Connected || !safetyInfo.IsSafe) {
+                Report(progress, $"GRB {grbName}: safety monitor UNSAFE — waiting until safe…");
+                Logger.Warning($"[Observatory] Safety monitor UNSAFE — polling until safe for GRB {grbName}.");
+                Notification.ShowWarning($"GRB {grbName}: safety UNSAFE — waiting for safe conditions.");
+                await WaitForSafe(grbName, progress, token);
+                Logger.Info($"[Observatory] Safety monitor now SAFE — continuing for GRB {grbName}.");
+                Notification.ShowInformation($"GRB {grbName}: conditions safe — resuming.");
             }
 
             // ── 2 + 3 + 4. Shutter state ──────────────────────────────────────
@@ -123,12 +129,28 @@ namespace Sd.NINA.Demo2.Services {
                     Logger.Info($"[Observatory] Shutter open.");
                 }
 
-                // Re-check safety after shutter operations — weather may have changed
+                // Re-check safety after shutter operations — weather may have changed.
+                // If UNSAFE: close the shutter to protect the equipment, then poll
+                // until conditions are safe again and re-open before continuing.
                 safetyInfo = _safety.GetInfo();
-                if (safetyInfo.Connected && !safetyInfo.IsSafe) {
-                    Notification.ShowWarning($"GRB {grbName}: safety UNSAFE after shutter opened — closing and skipping.");
+                if (!safetyInfo.Connected || !safetyInfo.IsSafe) {
+                    Notification.ShowWarning($"GRB {grbName}: safety UNSAFE after shutter opened — closing shutter and waiting.");
+                    Logger.Warning($"[Observatory] Safety UNSAFE after shutter opened — closing shutter and waiting for GRB {grbName}.");
                     await _dome.CloseShutter(token);
-                    return Skip("Safety monitor became UNSAFE after shutter opened — shutter closed, GRB skipped.");
+                    await WaitForShutter(ShutterState.ShutterClosed, ShutterTimeoutMinutes, token);
+
+                    Report(progress, $"GRB {grbName}: shutter closed — waiting for safe conditions…");
+                    await WaitForSafe(grbName, progress, token);
+
+                    // Conditions safe again — re-open the shutter
+                    Logger.Info($"[Observatory] Conditions safe again — re-opening shutter for GRB {grbName}.");
+                    await _dome.OpenShutter(token);
+                    bool reopenedOk = await WaitForShutter(ShutterState.ShutterOpen, ShutterTimeoutMinutes, token);
+                    if (!reopenedOk)
+                        return Skip("Shutter did not re-open after conditions became safe — cannot observe.");
+
+                    Logger.Info($"[Observatory] Shutter re-opened — continuing for GRB {grbName}.");
+                    Notification.ShowInformation($"GRB {grbName}: conditions safe, shutter re-opened — continuing.");
                 }
             }
 
@@ -170,6 +192,23 @@ namespace Sd.NINA.Demo2.Services {
         }
 
         // ── Private helpers ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Polls the safety monitor every PollIntervalSeconds indefinitely until it reports
+        /// safe (or is disconnected). Returns when it is safe to proceed.
+        /// Only exits early if the CancellationToken is cancelled.
+        /// </summary>
+        private async Task WaitForSafe(string grbName, IProgress<ApplicationStatus> progress, CancellationToken token) {
+            while (true) {
+                token.ThrowIfCancellationRequested();
+                var info = _safety.GetInfo();
+                // Only proceed when the monitor is BOTH connected AND safe.
+                // Disconnected = unknown = not safe — keep waiting.
+                if (info.Connected && info.IsSafe) return;
+                Report(progress, $"GRB {grbName}: safety UNSAFE — rechecking in {PollIntervalSeconds}s…");
+                await Task.Delay(TimeSpan.FromSeconds(PollIntervalSeconds), token);
+            }
+        }
 
         /// <summary>Polls shutter status every PollIntervalSeconds until target or timeout.</summary>
         private async Task<bool> WaitForShutter(

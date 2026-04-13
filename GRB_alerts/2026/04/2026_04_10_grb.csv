@@ -1,0 +1,7 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code,validation_passed,confidence_score
+260410a,44287,26/04/13,12:54:41,,,,,,,,OTHERS,2026-04-10,07:03:56,,,,,,1462,,,,,,,,,,260410,True,0.387
+260410a,44287,26/04/13,12:54:41,,,,,,,,OTHERS,2026-04-10,07:03:56,,,,,,1462,,,,,,,,,,260410,True,0.387
+260410a,44287,26/04/13,12:54:41,,,,,,,,OTHERS,2026-04-10,07:03:56,,,,,,1462,,,,,,,,,,260410,True,0.387
+260410a,44287,26/04/13,12:54:41,,,,,,,,OTHERS,2026-04-10,07:03:56,,,,,,1462,,,,,,,,,,260410,True,0.387
+260410a,44287,26/04/13,12:54:41,,,,,,,,OTHERS,2026-04-10,07:03:56,,,,,,1462,,,,,,,,,,260410,True,0.387
+260410b,44288,26/04/13,13:29:15,,,,,,,,OTHERS,2026-04-10,12:22:26,,,,,,1102,,,,,,,,,,260410,True,0.387

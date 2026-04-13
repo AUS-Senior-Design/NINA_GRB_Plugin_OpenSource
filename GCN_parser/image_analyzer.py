@@ -61,7 +61,16 @@ from photutils.detection import DAOStarFinder
 from photutils.aperture import CircularAperture, CircularAnnulus, aperture_photometry
 
 # ── Firebase init ─────────────────────────────────────────────────────────────
-cred = credentials.Certificate("firebase_service_account.json")
+_HERE   = os.path.dirname(os.path.abspath(__file__))
+_SA_PATH = os.path.join(_HERE, "firebase_service_account.json")
+
+if not os.path.exists(_SA_PATH):
+    raise FileNotFoundError(
+        f"[Analyzer] Service account file not found at:\n  {_SA_PATH}\n"
+        "Place firebase_service_account.json in the GCN_parser/ folder."
+    )
+
+cred = credentials.Certificate(_SA_PATH)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 

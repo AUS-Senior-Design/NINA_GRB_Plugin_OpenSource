@@ -51,8 +51,18 @@ from astropy.io import fits
 import astropy.units as u
 
 # ── Firebase init ─────────────────────────────────────────────────────────────
+# Anchor the service account path to this script's directory so the file is
+# always found regardless of what directory you run the script from.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_SA_PATH = os.path.join(_HERE, "firebase_service_account.json")
+
 print("[Test] Initialising Firebase...")
-cred = credentials.Certificate("firebase_service_account.json")
+if not os.path.exists(_SA_PATH):
+    print(f"[Test] ERROR: Service account file not found at:\n       {_SA_PATH}")
+    print("[Test]        Place firebase_service_account.json in the GCN_parser/ folder.")
+    exit(1)
+
+cred = credentials.Certificate(_SA_PATH)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
