@@ -60,15 +60,16 @@ namespace Sd.NINA.Demo2.Services {
 
                 var body = new JObject {
                     ["fields"] = new JObject {
-                        ["grb_name"] = new JObject { ["stringValue"] = grb.Name },
-                        ["ra_deg"] = new JObject { ["doubleValue"] = grb.RA },
-                        ["dec_deg"] = new JObject { ["doubleValue"] = grb.Dec },
-                        ["error_arcmin"] = new JObject { ["doubleValue"] = grb.Error },
-                        ["capture_time"] = new JObject { ["stringValue"] = DateTime.UtcNow.ToString("o") },
-                        ["exposure_count"] = new JObject { ["integerValue"] = exposureCount.ToString() },
-                        ["exposure_seconds"] = new JObject { ["integerValue"] = exposureSeconds.ToString() },
-                        ["fits_directory"] = new JObject { ["stringValue"] = fitsDir },
-                        ["status"] = new JObject { ["stringValue"] = "pending_analysis" }
+                        ["grb_name"]        = new JObject { ["stringValue"]  = grb.Name },
+                        ["ra_deg"]          = new JObject { ["doubleValue"]  = grb.RA },
+                        ["dec_deg"]         = new JObject { ["doubleValue"]  = grb.Dec },
+                        ["error_arcmin"]    = new JObject { ["doubleValue"]  = grb.Error },
+                        ["trigger_time"]    = new JObject { ["stringValue"]  = grb.TriggerTime.ToString("o") },
+                        ["capture_time"]    = new JObject { ["stringValue"]  = DateTime.UtcNow.ToString("o") },
+                        ["exposure_count"]  = new JObject { ["integerValue"] = exposureCount.ToString() },
+                        ["exposure_seconds"]= new JObject { ["integerValue"] = exposureSeconds.ToString() },
+                        ["fits_directory"]  = new JObject { ["stringValue"]  = fitsDir },
+                        ["status"]          = new JObject { ["stringValue"]  = "pending_analysis" }
                     }
                 };
 
