@@ -6,12 +6,14 @@ using NINA.Core.Utility.Notification;
 using NINA.Equipment.Interfaces.Mediator;
 using NINA.Equipment.Model;
 using NINA.Image.Interfaces;
+using NINA.Profile.Interfaces;
 using NINA.Sequencer.SequenceItem;
 using NINA.WPF.Base.Interfaces.Mediator;
 using Sd.NINA.Demo2.Models;
 using Sd.NINA.Demo2.Services;
 using System;
 using System.ComponentModel.Composition;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,19 +31,22 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
     [JsonObject(MemberSerialization.OptIn)]
     public class GRBCaptureOnlyInstruction : SequenceItem {
 
-        private readonly IImagingMediator imagingMediator;
+        private readonly IImagingMediator  imagingMediator;
         private readonly IImageSaveMediator imageSaveMediator;
+        private readonly IProfileService   profileService;
 
         [ImportingConstructor]
         public GRBCaptureOnlyInstruction(
-                IImagingMediator   imagingMediator,
-                IImageSaveMediator imageSaveMediator) {
+                IImagingMediator    imagingMediator,
+                IImageSaveMediator  imageSaveMediator,
+                IProfileService     profileService) {
             this.imagingMediator   = imagingMediator;
             this.imageSaveMediator = imageSaveMediator;
+            this.profileService    = profileService;
         }
 
         public GRBCaptureOnlyInstruction(GRBCaptureOnlyInstruction copyMe)
-            : this(copyMe.imagingMediator, copyMe.imageSaveMediator) {
+            : this(copyMe.imagingMediator, copyMe.imageSaveMediator, copyMe.profileService) {
             CopyMetaData(copyMe);
         }
 
@@ -73,7 +78,15 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
 
                 Logger.Info($"[GRB Camera Only] Done: 3 exposures captured for {grb.Name}");
                 Notification.ShowSuccess($"GRB {grb.Name}: 3 exposures captured (camera only).");
-                await FirestoreCapturePoster.PostCaptureAsync(grb, 3, 30);
+
+                // Read the actual NINA image save path from the active profile —
+                // same logic as GRBCaptureInstruction so image_analyzer.py finds the files
+                string imageRoot = profileService?.ActiveProfile?.ImageFileSettings?.FilePath
+                    ?? Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                        "N.I.N.A");
+
+                await FirestoreCapturePoster.PostCaptureAsync(grb, 3, 30, imageRoot);
                 GRBObservabilityService.MarkAsObserved(grb.Name);
 
             } catch (OperationCanceledException) {
