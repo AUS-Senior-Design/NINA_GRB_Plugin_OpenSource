@@ -19,6 +19,7 @@ using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -145,6 +146,13 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
                 // ── Step 4: Notify + Firestore ────────────────────────────────────
                 Logger.Info($"[GRB Capture] Done: {expCount} exposures captured for {grb.Name}");
                 Notification.ShowSuccess($"GRB {grb.Name}: {expCount} exposures captured.");
+
+                // Insiyah: Update status in observable_list 
+                await FirestoreGrbListener.UpdateObservableListStatusAsync(
+                    FirestoreGrbListener.SharedProjectId,
+                    FirestoreGrbListener.SharedCredential,
+                    grb.Name,
+                    "observed");
 
                 // Pass the real NINA image save root so image_analyzer.py finds the FITS files
                 string imageRoot = profileService?.ActiveProfile?.ImageFileSettings?.FilePath

@@ -52,6 +52,11 @@ namespace Sd.NINA.Demo2.Services {
         private string _projectId;
         private GoogleCredential _credential;
 
+
+        // Insiyah: Expose ProjectId and Credential as internal statics in FirestoreGrbListener.cs
+        internal static string SharedProjectId { get; private set; }
+        internal static GoogleCredential SharedCredential { get; private set; }
+
         // Set from Demo2.cs after the listener is created
         private GRBObservabilityService _observabilityService;
 
@@ -93,6 +98,11 @@ namespace Sd.NINA.Demo2.Services {
                 _credential = GoogleCredential.FromJson(rawJson)
                     .CreateScoped("https://www.googleapis.com/auth/datastore");
                 Logger.Info("[GRB Listener] Credential loaded for project: " + _projectId);
+
+                // insiyah: Used by UpdateObservableListStatusAsync
+                SharedProjectId = _projectId;
+                SharedCredential = _credential;
+
             } catch (Exception ex) {
                 Logger.Error("[GRB Listener] Failed to load credential: " + ex.Message);
                 return;
@@ -408,7 +418,7 @@ namespace Sd.NINA.Demo2.Services {
 
                 // halla: update status to "queued" instead of deleting the doc
                 // await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
-                await UpdateObservableListStatusAsync(httpClient, accessToken, earliest.docName, "queued");
+                await UpdateObservableListStatusAsync(SharedProjectId, SharedCredential, earliest.grb.Name, "queued");
 
             } else if (now < earliest.startTime) {
                 // halla: window hasn't opened yet — just log and wait
@@ -419,40 +429,106 @@ namespace Sd.NINA.Demo2.Services {
                 Logger.Warning($"[GRB Queue] Window for {earliest.grb.Name} has expired " +
                                $"(ended {earliest.endTime:HH:mm} UTC) — marking as expired.");
                 // await DeleteObservableListDocAsync(httpClient, accessToken, earliest.docName);
-                await UpdateObservableListStatusAsync(httpClient, accessToken, earliest.docName, "expired");
+                await UpdateObservableListStatusAsync(SharedProjectId, SharedCredential, earliest.grb.Name, "expired");
             }
         }
+
+        // insiyah : Updated "UpdateObservableListStatusAsync" so that it can be used outside of this function
+        //The new static method looks up the doc by GRB name, so you need to pass the GRB name
+        public static async Task UpdateObservableListStatusAsync(
+                string projectId, GoogleCredential credential, string grbName, string newStatus) {
+            try {
+                // Fetch the observable_list to find the doc whose GRB_name matches
+                using var httpClient = new HttpClient();
+                string accessToken = await credential.UnderlyingCredential
+                    .GetAccessTokenForRequestAsync();
+
+                string listUrl = "https://firestore.googleapis.com/v1/projects/" + projectId
+                               + "/databases/(default)/documents/observable_list?pageSize=100";
+                var listReq = new HttpRequestMessage(HttpMethod.Get, listUrl);
+                listReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                var listResp = await httpClient.SendAsync(listReq);
+                if (!listResp.IsSuccessStatusCode) {
+                    Logger.Warning($"[GRB Status] HTTP {listResp.StatusCode} fetching observable_list");
+                    return;
+                }
+
+                string body = await listResp.Content.ReadAsStringAsync();
+                var documents = JObject.Parse(body)["documents"] as JArray;
+                if (documents == null) return;
+
+                // Find the doc whose GRB_name matches
+                foreach (var doc in documents) {
+                    var fields = doc["fields"] as JObject;
+                    string docGrbName = fields?["GRB_name"]?["stringValue"]?.ToString()
+                                     ?? fields?["grb_name"]?["stringValue"]?.ToString();
+                    if (!string.Equals(docGrbName, grbName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    string docName = doc["name"]?.ToString();
+                    string patchUrl = "https://firestore.googleapis.com/v1/" + docName
+                                    + "?updateMask.fieldPaths=status";
+
+                    var patchBody = new JObject {
+                        ["fields"] = new JObject {
+                            ["status"] = new JObject { ["stringValue"] = newStatus }
+                        }
+                    };
+
+                    var patchReq = new HttpRequestMessage(new HttpMethod("PATCH"), patchUrl) {
+                        Content = new StringContent(patchBody.ToString(), Encoding.UTF8, "application/json")
+                    };
+                    patchReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                    var patchResp = await httpClient.SendAsync(patchReq);
+                    if (patchResp.IsSuccessStatusCode)
+                        Logger.Info($"[GRB Status] Status updated to '{newStatus}' for: {grbName}");
+                    else
+                        Logger.Warning($"[GRB Status] HTTP {patchResp.StatusCode} updating status for: {grbName}");
+                    return;
+                }
+
+                Logger.Warning($"[GRB Status] No observable_list doc found for GRB: {grbName}");
+            } catch (Exception ex) {
+                Logger.Error($"[GRB Status] Failed to update status for {grbName}: " + ex.Message);
+            }
+        }
+
+
 
         // halla: updates only the "status" field of a document in observable_list.
         // uses PATCH with an updateMask so no other fields are touched.
         // only called when the current status is confirmed "pending" (checked before this point).
-        private async Task UpdateObservableListStatusAsync(
-                HttpClient httpClient, string accessToken, string docName, string newStatus) {
-            try {
-                string patchUrl = "https://firestore.googleapis.com/v1/" + docName
-                                + "?updateMask.fieldPaths=status";
 
-                var body = new JObject {
-                    ["fields"] = new JObject {
-                        ["status"] = new JObject { ["stringValue"] = newStatus }
-                    }
-                };
+        // insiyah: kept for ref
+        //private async Task UpdateObservableListStatusAsync(
+        //        HttpClient httpClient, string accessToken, string docName, string newStatus) {
+        //    try {
+        //        string patchUrl = "https://firestore.googleapis.com/v1/" + docName
+        //                        + "?updateMask.fieldPaths=status";
 
-                var patchRequest = new HttpRequestMessage(new HttpMethod("PATCH"), patchUrl) {
-                    Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json")
-                };
-                patchRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        //        var body = new JObject {
+        //            ["fields"] = new JObject {
+        //                ["status"] = new JObject { ["stringValue"] = newStatus }
+        //            }
+        //        };
 
-                var patchResponse = await httpClient.SendAsync(patchRequest);
-                if (patchResponse.IsSuccessStatusCode)
-                    Logger.Info($"[GRB Queue] Status updated to '{newStatus}' for: {docName}");
-                else
-                    Logger.Warning($"[GRB Queue] HTTP {patchResponse.StatusCode} " +
-                                   $"updating status to '{newStatus}' for: {docName}");
-            } catch (Exception ex) {
-                Logger.Error($"[GRB Queue] Failed to update status for {docName}: " + ex.Message);
-            }
-        }
+        //        var patchRequest = new HttpRequestMessage(new HttpMethod("PATCH"), patchUrl) {
+        //            Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json")
+        //        };
+        //        patchRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        //        var patchResponse = await httpClient.SendAsync(patchRequest);
+        //        if (patchResponse.IsSuccessStatusCode)
+        //            Logger.Info($"[GRB Queue] Status updated to '{newStatus}' for: {docName}");
+        //        else
+        //            Logger.Warning($"[GRB Queue] HTTP {patchResponse.StatusCode} " +
+        //                           $"updating status to '{newStatus}' for: {docName}");
+        //    } catch (Exception ex) {
+        //        Logger.Error($"[GRB Queue] Failed to update status for {docName}: " + ex.Message);
+        //    }
+        //}
+
 
         // halla: kept for reference — replaced by UpdateObservableListStatusAsync
         // private async Task DeleteObservableListDocAsync(HttpClient httpClient, string accessToken, string docName) {
