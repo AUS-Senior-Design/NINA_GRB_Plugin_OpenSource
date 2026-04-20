@@ -28,3 +28,10 @@ GRB 251222A,43230,25/12/24,11:20:29,,,,,0.18,mag,,FERMI,,,18:16:00,,1,days,after
 GRB 251129A,43228,25/12/24,10:46:36,14:57:18.867,hms,+79:17:34.74,daa,0.044,s,,EP,2025-11-29,02:32:05,,,,,,,,,,,,,Unsupported error unit: s
 GRB 251222A,43226,25/12/24,08:57:11,,,,,0.08,mag,,FERMI,,,21:15,,0.173,days,after_trigger,,,,,,,19.14,Unsupported error unit: mag
 EP251220a,43221,25/12/23,18:19:15,,,,,0.2,mag,,EP,,,20:32:36,,2.5,days,after_trigger,,,,,,,22.55,Unsupported error unit: mag
+AT2026jpw,44353,26/04/20,06:51:39,,,,,,,,,,,20:53:30,14:47:18,,,,,,,,,,22.11,"strptime() argument 1 must be str, not None"
+,44352,26/04/20,06:33:01,,,,,,,,EP,,,10:53,,3.5,hours,after_trigger,,,,,,,,"expected string or bytes-like object, got 'NoneType'"
+,44322,26/04/17,06:57:45,,,,,,,,EP,,,05:46,,27,minutes,after_trigger,,,,,,,,"expected string or bytes-like object, got 'NoneType'"
+AT2026jpw,44316,26/04/16,15:00:15,,,,,,,,,2026-04-15,19:17:42,,,,,,,,,,,,21.49,"strptime() argument 1 must be str, not None"
+GOTO26djh/AT2026jpw,44305,26/04/16,01:54:19,13:22:13.34,hms,+37:02:26.88,daa,15,arcsec,,EP,,,18:49:01,,,,,,1.7,erg cm^-2 s^-1,,,,,"strptime() argument 1 must be str, not None"
+GOTO26djh/AT2026jpw,44304,26/04/16,00:39:58,,,,,,,,,,,19:30:44,22:01:13,,,,,,,,,,21.6,"strptime() argument 1 must be str, not None"
+GOTO26djh/AT2026jpw,44301,26/04/15,18:38:37,13:22:13.21,hms,+37:02:15.16,hms,,,,OTHERS,2026-04-13,23:17:32,,,,,,,,,,,,21.55,"strptime() argument 1 must be str, not None"

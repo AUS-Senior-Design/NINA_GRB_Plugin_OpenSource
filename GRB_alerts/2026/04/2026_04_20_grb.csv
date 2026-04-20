@@ -1,0 +1,8 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code,validation_passed,confidence_score
+260420a,36001,26/04/20,18:42:13,82.145,deg,-62.330,deg,1.8,deg,,FERMI,2026-04-20,18:11:42,,,,,,,,,3.1,erg cm^-2,,,82.145,-62.33,1.8,260420,True,0.903
+260420b,36002,26/04/20,19:05:48,213.470,deg,34.820,deg,4.2,deg,,FERMI,2026-04-20,18:58:07,,,,,,,,,8.6,erg cm^-2,,,213.47,34.82,4.2,260420,True,0.903
+260420b,36003,26/04/20,19:47:22,14h 14m 05.23s,hms,"+34d 47' 40.6""",daa,2.8,arcsec,,FERMI,2026-04-20,,,,,,,0.42,1.4,erg cm^-2 s^-1,,,,18.3,213.52179166666667,34.79461111111111,0.0007777777777777777,260420,True,0.806
+260420b,36003,26/04/20,19:47:22,14h 14m 05.23s,hms,"+34d 47' 40.6""",daa,2.8,arcsec,,FERMI,2026-04-20,,,,,,,0.42,1.4,erg cm^-2 s^-1,,,,18.3,213.52179166666667,34.79461111111111,0.0007777777777777777,260420,True,0.806
+260420a,36001,26/04/20,18:42:13,82.145,deg,-62.330,deg,1.8,deg,,FERMI,2026-04-20,18:11:42,,,,,,,,,3.1,erg cm^-2,,,82.145,-62.33,1.8,260420,True,0.903
+260420b,36002,26/04/20,19:05:48,213.470,deg,34.820,deg,4.2,deg,,FERMI,2026-04-20,18:58:07,,,,,,,,,8.6,erg cm^-2,,,213.47,34.82,4.2,260420,True,0.903
+260420b,36003,26/04/20,19:47:22,14h 14m 05.23s,hms,"+34d 47' 40.6""",daa,2.8,arcsec,,FERMI,2026-04-20,,,,,,,0.42,1.4,erg cm^-2 s^-1,,,,18.3,213.52179166666667,34.79461111111111,0.0007777777777777777,260420,True,0.806

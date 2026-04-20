@@ -1,0 +1,7 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code,validation_passed,confidence_score
+260415b,44313,26/04/16,13:41:43,,,,,,,,,2026-04-15,,,,,,,,,,,,,,,,,260415,True,0.129
+260415a,44311,26/04/16,12:39:40,,,,,,,,OTHERS,2026-04-15,04:44:27,,,,,,2212,,,,,,,,,,260415,True,0.387
+260415b,44302,26/04/15,22:13:57,229.43,deg,24.94,deg,,,,OTHERS,2026-04-15,02:28:55,,,,,,1500,,,,,,,229.43,24.94,,260415,True,0.774
+260415b,44300,26/04/15,05:51:24,229.43,deg,24.94,deg,9.03,deg,,FERMI,2026-04-15,02:25:33,,,,,,,,,,,,,229.43,24.94,9.03,260415,True,0.903
+260415a,44299,26/04/15,04:54:40,58.5,deg,-24.0,deg,5.5,deg,,FERMI,2026-04-15,04:43:59,,,,,,,,,,,,,58.5,-24.0,5.5,260415,True,0.903
+,44298,26/04/15,04:31:12,14h 44m 00.00s,hms,+19d 21m 00.0s,daa,,,-29.0,FERMI,2026-04-15,04:08:29,,,6140,sec,after_trigger,,,,,,,19.8,221.0,19.35,,260415,True,0.677

@@ -1,0 +1,4 @@
+GRB_name,GCN_number,email_date,email_time,ra,ra_unit,dec,dec_unit,error,error_unit,altitude_degrees,space_telescope,trigger_date,trigger_time_utc,obs_start_time_utc,obs_end_time_utc,trigger_offset_value,trigger_offset_unit,trigger_offset_relation,peak_count_per_sec,flux,flux_unit,fluence,fluence_unit,snr,magnitude,ra_deg,dec_deg,error_deg,date_code,validation_passed,confidence_score
+260419b,44347,26/04/19,08:00:23,137.1,deg,-33.8,deg,9.6,deg,,FERMI,2026-04-19,07:49:50,,,,,,,,,,,,,137.1,-33.8,9.6,260419,True,0.903
+260419a,44346,26/04/19,07:20:17,317.4,deg,-34.4,deg,2.3,deg,,FERMI,2026-04-19,07:09:40,,,,,,,,,,,,,317.4,-34.4,2.3,260419,True,0.903
+,44345,26/04/19,07:16:07,20h 50m 14.40s,hms,-47d 41m 24.0s,daa,,,,FERMI,2026-04-19,07:10:56,,,,,,,,,,,,19.3,312.56,-47.69,,260419,True,0.677
