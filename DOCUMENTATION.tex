@@ -1,0 +1,899 @@
+\documentclass[12pt,a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{microtype}
+\usepackage{caption}
+\usepackage{longtable}
+\usepackage{array}
+
+% ── Hyperref setup ────────────────────────────────────────────────────────────
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    urlcolor=blue!70!black,
+    citecolor=green!50!black,
+    pdftitle={NINA GRB Plugin Technical Documentation},
+    pdfauthor={Halla Daas, Insiyah Zujar, Ezzeddin Diab, Qusai Al-Tah}
+}
+
+% ── Code listing styles ───────────────────────────────────────────────────────
+\definecolor{codebg}{rgb}{0.97,0.97,0.97}
+\definecolor{codeframe}{rgb}{0.8,0.8,0.8}
+\definecolor{keywordcolor}{rgb}{0.0,0.3,0.7}
+\definecolor{commentcolor}{rgb}{0.4,0.6,0.4}
+\definecolor{stringcolor}{rgb}{0.7,0.1,0.1}
+
+\lstset{
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeframe},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{keywordcolor}\bfseries,
+    commentstyle=\color{commentcolor}\itshape,
+    stringstyle=\color{stringcolor},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    captionpos=b
+}
+
+\lstdefinestyle{python}{
+    language=Python,
+    morekeywords={import,from,as,def,return,class,if,else,elif,for,while,
+                  True,False,None,with,try,except,raise,pass,in,not,and,or}
+}
+
+\lstdefinestyle{csharp}{
+    language={[Sharp]C},
+    morekeywords={var,async,await,string,bool,int,double,float,void,new,
+                  public,private,protected,static,readonly,override,virtual,
+                  using,namespace,class,interface,enum,return,get,set}
+}
+
+\lstdefinestyle{bash}{
+    language=bash,
+    morekeywords={sudo,systemctl,pip,git,cd,mkdir,cp,echo}
+}
+
+% ── Header / footer ───────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small NINA GRB Plugin --- Technical Documentation}
+\lhead{\small AUS Senior Design Project, Spring 2026}
+\rfoot{\small Page \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Title data ────────────────────────────────────────────────────────────────
+\title{
+    \vspace{-1cm}
+    {\large American University of Sharjah}\\[0.4cm]
+    {\large Department of Computer Science and Engineering}\\[1.2cm]
+    {\LARGE \textbf{NINA GRB Plugin}}\\[0.3cm]
+    {\Large An Autonomous Framework for Transient Alert\\
+    Classification and Telescope Image Processing}\\[0.5cm]
+    {\large Technical Documentation}\\[0.8cm]
+    \rule{\textwidth}{0.5pt}
+}
+\author{
+    Halla Daas\quad Insiyah Zujar\quad Ezzeddin Diab\quad Qusai Al-Tah\\[0.3cm]
+    \small Advisors: Dr.\ Tamer Shanableh \& Dr.\ Nidhal Guessoum
+}
+\date{Spring 2026}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+\tableofcontents
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Abstract}
+
+This document describes the technical implementation of an autonomous
+Gamma-Ray Burst (GRB) follow-up system built as an open-source plugin for
+Nighttime Imaging `N' Astronomy (N.I.N.A). The system monitors the
+Gamma-ray Coordinates Network (GCN) for new alert emails, uses GPT-4o-mini
+to extract astrophysical parameters, filters candidates against observatory
+constraints, and autonomously triggers telescope slewing, plate-solving, and
+image capture. Captured FITS files are subsequently processed by a Python
+photometry pipeline that performs forced aperture photometry, calibrates
+against Gaia DR3, constructs a per-event light curve including 3$\sigma$
+upper limits, and fits a power-law temporal decay model
+$F(t) \propto t^{-\alpha}$. All data flows through Google Firestore, enabling
+real-time coordination between the cloud-hosted alert pipeline, the NINA
+plugin running on the observatory PC, and the image analysis service.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{System Overview}
+
+\subsection{End-to-End Pipeline}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Alert Ingestion:} \texttt{gmail\_listener.py} monitors a
+          Gmail inbox 24/7 for new GCN Circular emails (designed for
+          deployment as a Linux systemd service on a cloud VM).
+    \item \textbf{LLM Parsing:} \texttt{parser.py} sends the raw email text
+          to the OpenAI GPT-4o-mini API. The model extracts: GRB name, RA,
+          Dec, positional error radius, trigger time, space telescope,
+          count rate, flux, SNR, and optical magnitude.
+    \item \textbf{Firestore Storage:} \texttt{firebase\_client.py} writes
+          parsed alerts to the \texttt{grb\_alerts} Firestore collection.
+    \item \textbf{Observability Filter:} The NINA plugin's
+          \texttt{GRBObservabilityService} reads new alerts and checks
+          altitude, declination range, localization uncertainty, GRB age,
+          count rate, flux, SNR, moon constraints, and space telescope
+          filters. Passing GRBs are written to \texttt{observable\_list}.
+    \item \textbf{NINA Trigger:} \texttt{GRBAlertTrigger} polls
+          \texttt{observable\_list} every 30 seconds and sets
+          \texttt{GRBPendingState} when a new observable GRB is found.
+    \item \textbf{Observatory Preparation:} \texttt{GRBObservatoryStateService}
+          checks the safety monitor (polls if unsafe or disconnected), shutter
+          state (opens if closed), telescope park state (unparks), and camera
+          busy state before proceeding.
+    \item \textbf{Capture:} \texttt{GRBCaptureInstruction} slews the mount
+          (up to 3 retry attempts), runs a plate-solve centering loop
+          (up to 3 iterations, 30\arcsec\ threshold), and captures
+          $N \times M$\,s LIGHT frames. Custom FITS headers
+          (\texttt{GRBNAME}, \texttt{GRB\_RA}, \texttt{GRB\_DEC},
+          \texttt{GRB\_ERR}, \texttt{GRBTEL}, \texttt{GRBTRIG}) are injected
+          into every saved file.
+    \item \textbf{Firestore Notification:} \texttt{FirestoreCapturePoster}
+          writes a \texttt{grb\_captures} document with
+          \texttt{status = pending\_analysis}, the FITS directory path, and
+          the trigger time.
+    \item \textbf{Image Analysis:} \texttt{image\_analyzer.py} (running
+          continuously on the observatory PC) detects the new document within
+          30 seconds and runs the full photometry pipeline (see
+          Section~\ref{sec:science}).
+    \item \textbf{Results:} The \texttt{grb\_captures} document is updated
+          with \texttt{status = analyzed}, the full per-frame light curve,
+          decay index $\alpha$, and summary statistics.
+\end{enumerate}
+
+\subsection{Architecture Diagram}
+
+\begin{verbatim}
+  [Cloud VM - Linux, 24/7 target deployment]
+    gmail_listener.py  -->  parser.py (GPT-4o-mini)
+                                  |
+                             Firestore
+                          grb_alerts collection
+                                  |
+  [Observatory Windows PC]        |
+    GRBAlertTrigger  <-----------/
+    (polls every 30s)
+           |
+    GRBObservabilityService
+    GRBObservatoryStateService
+           |
+    GRBCaptureInstruction
+    (slew -> plate-solve -> capture)
+           |
+    Firestore: grb_captures
+    status = pending_analysis
+           |
+    image_analyzer.py  (24/7 on observatory PC)
+           |
+    Firestore: grb_captures
+    status = analyzed + light_curve + decay_alpha
+\end{verbatim}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Installation \& Requirements}
+
+\subsection{Python Dependencies}
+
+\begin{lstlisting}[style=bash, caption={Install Python dependencies}]
+pip install firebase-admin openai astropy astroquery photutils \
+            scipy numpy rawpy astral defusedxml
+\end{lstlisting}
+
+\subsection{C\# / NINA Plugin Dependencies}
+
+\begin{itemize}
+    \item .NET 8 SDK
+    \item N.I.N.A.\ Plugin SDK (NuGet)
+    \item \texttt{Google.Apis.Auth} (NuGet)
+    \item \texttt{Newtonsoft.Json} (NuGet)
+\end{itemize}
+
+\subsection{Firebase / Firestore Setup}
+
+\begin{enumerate}
+    \item Create a Firebase project at \url{https://console.firebase.google.com}.
+    \item Enable Firestore in Native mode.
+    \item Generate a service account key:
+          \textit{Project Settings $\to$ Service Accounts $\to$
+          Generate new private key}.
+    \item Save the JSON file as
+          \texttt{GCN\_parser/firebase\_service\_account.json}.
+    \item The C\# plugin reads the same file from the plugin output
+          directory (auto-copied via PostBuild xcopy).
+\end{enumerate}
+
+\subsection{OpenAI API Key}
+
+Create \texttt{GCN\_parser/.env} with:
+
+\begin{lstlisting}[style=bash]
+OPENAI_API_KEY=sk-proj-...your-key-here...
+\end{lstlisting}
+
+\subsection{Gmail OAuth Setup}
+
+\begin{enumerate}
+    \item Enable the Gmail API in Google Cloud Console.
+    \item Create OAuth 2.0 credentials and download
+          \texttt{credentials.json} to \texttt{GCN\_parser/}.
+    \item Run \texttt{gmail\_listener.py} once manually to complete the
+          OAuth flow; \texttt{token.json} is saved for future runs.
+\end{enumerate}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Component Reference}
+
+\subsection{\texttt{gmail\_listener.py}}
+
+Monitors a Gmail inbox for new GCN Circular emails using the Gmail API.
+
+\begin{itemize}
+    \item Polls the inbox at a configurable interval.
+    \item Identifies GCN Circulars by subject line pattern matching.
+    \item Passes raw email body text to \texttt{parser.py}.
+    \item Marks processed emails as read to avoid reprocessing.
+\end{itemize}
+
+\subsection{\texttt{parser.py}}
+
+Extracts structured GRB parameters from raw GCN Circular email text using
+the OpenAI GPT-4o-mini API.
+
+\begin{lstlisting}[style=python, caption={Core LLM extraction call}]
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user",   "content": email_body}
+    ],
+    response_format={"type": "json_object"}
+)
+\end{lstlisting}
+
+\textbf{Extracted fields:} \texttt{grb\_name}, \texttt{ra\_deg},
+\texttt{dec\_deg}, \texttt{error\_arcmin}, \texttt{trigger\_time},
+\texttt{telescope}, \texttt{count\_rate}, \texttt{flux}, \texttt{snr},
+\texttt{magnitude}.
+
+\subsection{\texttt{firebase\_client.py}}
+
+Writes parsed GRB alert documents to the Firestore \texttt{grb\_alerts}
+collection. Uses \texttt{python-dotenv} with script-relative path resolution
+to load credentials regardless of the working directory.
+
+\subsection{\texttt{image\_analyzer.py}}
+
+The core photometry service. Polls Firestore every 30 seconds for
+\texttt{grb\_captures} documents with \texttt{status = pending\_analysis}
+and runs the full analysis pipeline (see Section~\ref{sec:science}).
+
+\textbf{Key constants:}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Constant & Value & Description \\
+\midrule
+\texttt{APERTURE\_RADIUS\_PX} & 8.0 px & Photometry aperture radius \\
+\texttt{ANNULUS\_INNER\_PX}   & 10.0 px & Background annulus inner radius \\
+\texttt{ANNULUS\_OUTER\_PX}   & 15.0 px & Background annulus outer radius \\
+\texttt{DETECTION\_SIGMA}     & 3.0 & SNR detection threshold \\
+\texttt{SEARCH\_WINDOW\_MIN}  & 15 min & FITS file search window ($\pm$) \\
+\texttt{MIN\_FRAMES\_FOR\_FIT}& 3 & Minimum detections for decay fit \\
+\texttt{POLL\_INTERVAL\_SECONDS} & 30 s & Firestore polling interval \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Key functions:}
+
+\begin{itemize}
+    \item \texttt{find\_fits\_files(fits\_directory, capture\_time)} ---
+          Searches recursively for \texttt{*.fits}, \texttt{*.fit},
+          \texttt{*.xisf}, \texttt{*.cr2}, \texttt{*.cr3} files within
+          $\pm15$ minutes of the recorded capture time.
+    \item \texttt{load\_image(path)} --- Loads FITS or Canon RAW files,
+          returning \texttt{(data, header)}.
+    \item \texttt{get\_obs\_time(fits\_path, header)} --- Reads
+          \texttt{DATE-OBS} from the FITS header; falls back to file
+          modification time.
+    \item \texttt{measure\_magnitude(fits\_path, ra, dec, error\_arcmin,
+          trigger\_time)} --- Full per-frame photometry (see
+          Section~\ref{sec:science}).
+    \item \texttt{fit\_power\_law\_decay(light\_curve)} --- Fits
+          $m(t) = m_0 + 2.5\alpha\log_{10}(t)$ via
+          \texttt{scipy.optimize.curve\_fit}.
+    \item \texttt{compute\_upper\_limit(bkg\_rms, aperture\_r\_px,
+          zero\_point)} --- Computes the 3$\sigma$ limiting magnitude.
+    \item \texttt{watch\_captures()} --- Main polling loop.
+\end{itemize}
+
+\subsection{\texttt{nina\_launcher.py}}
+
+Automatically launches NINA with the nightly GRB sequence at the correct
+time each evening.
+
+\begin{lstlisting}[style=python, caption={Sunset calculation with astral}]
+from astral import LocationInfo
+from astral.sun import sun
+
+location = LocationInfo(
+    name="Observatory",
+    timezone=OBSERVATORY_TZ,
+    latitude=OBSERVATORY_LAT,
+    longitude=OBSERVATORY_LON,
+)
+s = sun(location.observer, date=today, tzinfo=location.timezone)
+launch_time = s["sunset"].astimezone(timezone.utc) \
+              - timedelta(minutes=MINUTES_BEFORE_SUNSET)
+\end{lstlisting}
+
+\textbf{Configuration variables} (edit at top of file):
+
+\begin{itemize}
+    \item \texttt{OBSERVATORY\_LAT} / \texttt{OBSERVATORY\_LON} /
+          \texttt{OBSERVATORY\_TZ} --- Observatory location
+    \item \texttt{MINUTES\_BEFORE\_SUNSET} --- Default: 5 minutes
+    \item \texttt{NINA\_EXE} --- Path to \texttt{NINA.exe}
+    \item \texttt{SEQUENCE\_FILE} --- Path to the saved
+          \texttt{.json} sequence file
+\end{itemize}
+
+NINA is launched with:
+\begin{lstlisting}[style=bash]
+NINA.exe /sequenceFile "C:\GRB\grb_nightly.json" /runSequence
+\end{lstlisting}
+
+\subsection{\texttt{setup\_task\_scheduler.ps1}}
+
+PowerShell script (run once as Administrator) that registers three Windows
+Task Scheduler tasks:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Task Name & Trigger & Purpose \\
+\midrule
+\texttt{grb-nina-launcher} & At startup & Sleeps until sunset$-$5\,min, launches NINA \\
+\texttt{grb-nina-launcher-noon} & Daily 12:00 & Safety re-trigger if PC rebooted after sunrise \\
+\texttt{grb-image-analyzer} & At startup & Runs \texttt{image\_analyzer.py} 24/7 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{lstlisting}[style=bash, caption={One-time setup}]
+powershell -ExecutionPolicy Bypass -File setup_task_scheduler.ps1
+\end{lstlisting}
+
+\subsection{\texttt{GRBAlertTrigger.cs}}
+
+NINA sequence trigger (\texttt{ISequenceTrigger}) that polls the
+\texttt{observable\_list} Firestore collection every 30 seconds. When a
+new GRB is found, it stores the event in \texttt{GRBPendingState} so that
+the next \texttt{GRBCaptureInstruction} execution picks it up.
+
+\subsection{\texttt{GRBCaptureInstruction.cs}}
+
+NINA sequence item (\texttt{ISequenceItem}) that performs the full
+slew-and-capture workflow:
+
+\begin{enumerate}
+    \item Reads \texttt{GRBPendingState} and returns immediately if empty.
+    \item Calls \texttt{GRBObservatoryStateService.EvaluateAndPrepareAsync()}.
+    \item Saves current telescope coordinates for post-capture return slew.
+    \item Calls \texttt{SlewAndCenter()} with up to 3 slew retries and
+          3 plate-solve centering iterations (30\arcsec\ threshold).
+    \item Captures $N \times M$\,s LIGHT frames (configurable via Options).
+    \item Calls \texttt{FirestoreCapturePoster.PostCaptureAsync()}.
+    \item Marks the GRB as observed via \texttt{GRBObservabilityService
+          .MarkAsObserved()}.
+    \item Returns the mount to its original position.
+\end{enumerate}
+
+\subsection{\texttt{GRBObservatoryStateService.cs}}
+
+Pre-flight safety checks before any GRB capture attempt. Decision tree:
+
+\begin{enumerate}
+    \item \textbf{Safety monitor} --- If disconnected or UNSAFE: poll every
+          10\,s until connected \textit{and} safe.
+    \item \textbf{Shutter closing} --- Wait for fully closed, then open.
+    \item \textbf{Shutter closed} --- Open and wait until fully open.
+    \item \textbf{Shutter opening} --- Wait until fully open.
+    \item \textbf{Safety re-check} after shutter operations --- If UNSAFE:
+          close shutter, wait for safe, re-open.
+    \item \textbf{Telescope parked} --- Unpark automatically.
+    \item \textbf{Camera exposing} --- Wait up to \texttt{MaxWaitMinutes};
+          interrupt if threshold exceeded.
+\end{enumerate}
+
+\subsection{\texttt{FirestoreCapturePoster.cs}}
+
+Posts capture records to Firestore using the REST API authenticated via a
+Google service account (\texttt{GoogleCredential}). Key methods:
+
+\begin{itemize}
+    \item \texttt{PostCaptureAsync(grb, exposureCount, exposureSeconds,
+          fitsDirectory)} --- Creates a \texttt{grb\_captures} document
+          with \texttt{status = pending\_analysis}.
+    \item \texttt{PostObservableAlertAsync(...)} --- Upserts the GRB into
+          \texttt{observable\_list} (PATCH if exists, POST if new).
+    \item \texttt{PostSkippedAsync(grb, reason)} --- Records unobservable
+          GRBs with \texttt{status = skipped} and the reason.
+\end{itemize}
+
+\subsection{\texttt{GRBObservabilityService.cs}}
+
+Filters incoming GRB alerts against user-configured constraints:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Filter & Description \\
+\midrule
+Altitude & Target must be above minimum elevation \\
+Declination & Must be within configured Dec range \\
+Localization uncertainty & \texttt{error\_arcmin} $\leq$ \texttt{MaxLocalUncertainty} \\
+GRB age & Hours since trigger $\leq$ \texttt{GRB\_age} \\
+Count rate & $\geq$ configured threshold \\
+Flux & $\geq$ configured threshold \\
+SNR & $\geq$ configured threshold \\
+Moon altitude & Moon must be below \texttt{MaxMoonAlt} \\
+Moon separation & Angular distance $\geq$ \texttt{MinMoonSep} \\
+Moon phase & Illumination $\leq$ \texttt{MaxMoonPhase} \\
+Space telescope & Must match selected instruments \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Scientific Pipeline}
+\label{sec:science}
+
+\subsection{Background Subtraction}
+
+Sigma-clipped statistics are computed over the full image to estimate the
+sky background level and noise, rejecting bright stars and cosmic rays:
+
+\begin{equation}
+    (\mu_\mathrm{sky},\, \sigma_\mathrm{bkg}) =
+    \mathrm{SigmaClip}(\mathrm{image},\, \sigma = 3)
+\end{equation}
+
+The background-subtracted image is:
+\begin{equation}
+    I_\mathrm{sub}(x,y) = I(x,y) - \mu_\mathrm{sky}
+\end{equation}
+
+\subsection{Forced Aperture Photometry}
+
+Rather than searching for a source, the flux is measured at the exact
+reported GRB coordinates regardless of detection status (forced photometry,
+following Kumar et al.\ 2025):
+
+\begin{equation}
+    F_\mathrm{GRB} = \sum_{(x,y)\,\in\,\mathcal{A}} I_\mathrm{sub}(x,y)
+\end{equation}
+
+where $\mathcal{A}$ is a circular aperture of radius $r = 8$\,px centred
+on the WCS-projected GRB position.
+
+\subsection{Signal-to-Noise Ratio}
+
+\begin{equation}
+    \mathrm{SNR} = \frac{F_\mathrm{GRB}}{\sigma_\mathrm{bkg}
+    \sqrt{\pi r^2}}
+\end{equation}
+
+\subsection{Gaia DR3 Zero-Point Calibration}
+
+Reference stars within 5\arcmin\ of the GRB position are queried from
+Gaia DR3 (Cheng et al.\ 2025). For each reference star $i$:
+
+\begin{equation}
+    \mathrm{ZP}_i = m_{\mathrm{Gaia},i} + 2.5 \log_{10}(F_{\mathrm{ref},i})
+\end{equation}
+
+The field zero-point is the median over all $N_\mathrm{ref} \geq 3$ stars:
+
+\begin{equation}
+    \mathrm{ZP} = \mathrm{median}(\mathrm{ZP}_1, \ldots, \mathrm{ZP}_{N_\mathrm{ref}})
+    \qquad \sigma_\mathrm{ZP} = \mathrm{std}(\mathrm{ZP}_1, \ldots,
+    \mathrm{ZP}_{N_\mathrm{ref}})
+\end{equation}
+
+\subsection{Calibrated Magnitude (Detection, SNR $\geq 3\sigma$)}
+
+\begin{equation}
+    m = \mathrm{ZP} - 2.5 \log_{10}(F_\mathrm{GRB})
+\end{equation}
+
+Photometric uncertainty (Cheng et al.\ 2025):
+
+\begin{equation}
+    \sigma_m = \sqrt{\sigma_\mathrm{Poisson}^2 + \sigma_\mathrm{ZP}^2}
+    \qquad \text{where} \quad
+    \sigma_\mathrm{Poisson} = \frac{2.5}{\ln 10} \cdot \frac{1}{\mathrm{SNR}}
+\end{equation}
+
+\subsection{3$\sigma$ Upper Limit (Non-detection, SNR $< 3\sigma$)}
+
+When no source is confirmed, the 3$\sigma$ limiting magnitude is reported
+(Kumar et al.\ 2025):
+
+\begin{equation}
+    m_\mathrm{lim} = \mathrm{ZP} - 2.5 \log_{10}
+    \!\left(3\,\sigma_\mathrm{bkg}\sqrt{\pi r^2}\right)
+\end{equation}
+
+\subsection{Power-Law Temporal Decay}
+
+GRB optical afterglows fade as a power law in time (Del Vecchio et al.\
+2016):
+
+\begin{equation}
+    F(t) \propto t^{-\alpha}
+\end{equation}
+
+In magnitude space this becomes a linear model:
+
+\begin{equation}
+    m(t) = m_0 + 2.5\,\alpha\,\log_{10}(t)
+\end{equation}
+
+This is fit across all frames with confirmed detections
+($\mathrm{SNR} \geq 3$, $\Delta t > 0$) using
+\texttt{scipy.optimize.curve\_fit} with photometric uncertainties as
+weights. A minimum of 3 detection frames spanning $>3$\,min is required.
+
+Typical values for optical afterglows: $\alpha \approx 0.8$--$1.5$
+(Del Vecchio et al.\ 2016, survey of 176 Swift GRBs).
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Configuration}
+
+All NINA plugin settings are accessible via
+\textit{Options $\to$ Plugins $\to$ GRB Helper} in NINA.
+
+\begin{longtable}{lllp{5.5cm}}
+\toprule
+Setting & Type & Default & Description \\
+\midrule
+\endfirsthead
+\toprule
+Setting & Type & Default & Description \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\texttt{DecMin} & double & $-40°$ & Minimum declination \\
+\texttt{DecMax} & double & $+90°$ & Maximum declination \\
+\texttt{MaxLocalUncertainty} & double & 30 arcmin & Max positional error radius \\
+\texttt{GRB\_age} & double & 0 h & Max hours since trigger (0 = disabled) \\
+\texttt{CountRate} & double & 0 & Min count rate (counts/s; 0 = disabled) \\
+\texttt{Flux\_1}, \texttt{Flux\_2} & float, int & 0 & Min flux mantissa $\times 10^{\text{exp}}$ \\
+\texttt{SNR} & double & 0 & Min SNR from alert (0 = disabled) \\
+\texttt{Altitude} & double & 30° & Min target altitude above horizon \\
+\texttt{Mag} & double & 20 & Max expected optical magnitude \\
+\texttt{isSwift} & bool & false & Require Swift detection \\
+\texttt{isEP} & bool & false & Require Einstein Probe detection \\
+\texttt{isSVOM} & bool & false & Require SVOM detection \\
+\texttt{isFermi} & bool & false & Require Fermi detection \\
+\texttt{isOther} & bool & false & Allow other telescopes \\
+\texttt{ExposureCount} & int & 3 & Number of LIGHT frames per GRB \\
+\texttt{ExposureTime} & double & 30 s & Duration of each LIGHT frame \\
+\texttt{Binning} & int & 1 & Camera binning ($1=1{\times}1$) \\
+\texttt{AstroTwilight} & double & $-12°$ & Max sun altitude for observations \\
+\texttt{MaxMoonAlt} & double & 20° & Max moon altitude \\
+\texttt{MinMoonSep} & double & 30° & Min moon--GRB angular separation \\
+\texttt{MaxMoonPhase} & double & 75\% & Max lunar illumination \\
+\texttt{MaxWaitMinutes} & int & 5 min & Max wait if camera is exposing \\
+\texttt{ObservatoryCode} & string & --- & MPC observatory code \\
+\texttt{SelectedProfile} & string & --- & Active NINA profile name \\
+\end{longtable}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Deployment Guide}
+
+\subsection{Cloud VM --- Linux (Alert Pipeline)}
+
+The alert ingestion pipeline is designed for deployment as systemd services
+on a Linux VM (e.g.\ GCP \texttt{e2-micro} free tier, AWS \texttt{t3.micro},
+or DigitalOcean \$4/mo droplet). \textit{Note: currently validated locally;
+cloud deployment is the planned production target.}
+
+\begin{lstlisting}[style=bash, caption={Install and clone}]
+git clone https://github.com/AUS-Senior-Design/NINA_GRB_Plugin_OpenSource
+cd NINA_GRB_Plugin_OpenSource/GCN_parser
+pip install -r requirements.txt
+\end{lstlisting}
+
+\textbf{Create \texttt{/etc/systemd/system/grb-parser.service}:}
+
+\begin{lstlisting}[style=bash]
+[Unit]
+Description=GRB GCN Gmail Listener + Parser
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/NINA_GRB_Plugin_OpenSource/GCN_parser
+ExecStart=/usr/bin/python3 gmail_listener.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+\end{lstlisting}
+
+\begin{lstlisting}[style=bash, caption={Enable services}]
+sudo systemctl enable grb-parser
+sudo systemctl start grb-parser
+sudo systemctl status grb-parser
+\end{lstlisting}
+
+\subsection{Observatory PC --- Windows}
+
+\subsubsection{Build and Deploy the NINA Plugin}
+
+\begin{enumerate}
+    \item Open \texttt{Demo\_2/Demo\_2.sln} in Visual Studio 2022.
+    \item Build in \texttt{Debug} or \texttt{Release} mode.
+    \item The PostBuild step automatically copies the plugin DLL and
+          \texttt{firebase\_service\_account.json} to:\\
+          \texttt{\%localappdata\%\textbackslash NINA\textbackslash
+          Plugins\textbackslash 3.0.0\textbackslash Sd.NINA.Demo2\textbackslash}
+\end{enumerate}
+
+\subsubsection{Configure \texttt{nina\_launcher.py}}
+
+Edit the configuration constants at the top of the file:
+
+\begin{lstlisting}[style=python]
+OBSERVATORY_LAT       = 30.0444      # decimal degrees North
+OBSERVATORY_LON       = 31.2357      # decimal degrees East
+OBSERVATORY_TZ        = "Africa/Cairo"
+MINUTES_BEFORE_SUNSET = 5
+NINA_EXE  = r"C:\Program Files\N.I.N.A. ...\NINA.exe"
+SEQUENCE_FILE = r"C:\GRB\grb_nightly.json"
+\end{lstlisting}
+
+\subsubsection{Register Task Scheduler Tasks}
+
+Run once as Administrator:
+
+\begin{lstlisting}[style=bash]
+powershell -ExecutionPolicy Bypass -File setup_task_scheduler.ps1
+\end{lstlisting}
+
+\subsubsection{NINA Advanced Sequencer Setup}
+
+Build the following sequence in NINA and save to \texttt{SEQUENCE\_FILE}:
+
+\begin{verbatim}
+START AREA
+  Connect Equipment
+  Cool Camera
+  Unpark Scope
+  Wait If Sun Altitude > -18 deg
+
+TARGET AREA
+  [Loop] Wait If Sun Altitude < -18 deg
+    TRIGGER: GRBAlertTrigger
+    GRBCaptureInstruction
+    Wait for Timespan: 00:00:30
+
+END AREA
+  Warm Camera
+  Park Scope
+  Disconnect Equipment
+\end{verbatim}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Firestore Schema}
+
+\subsection{\texttt{grb\_alerts} Collection}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Field & Type & Description \\
+\midrule
+\texttt{grb\_name} & string & GRB designation (e.g.\ \texttt{GRB 260413A}) \\
+\texttt{ra\_deg} & number & Right Ascension in degrees (J2000) \\
+\texttt{dec\_deg} & number & Declination in degrees (J2000) \\
+\texttt{error\_arcmin} & number & Positional uncertainty in arcminutes \\
+\texttt{trigger\_time} & string & ISO 8601 UTC trigger timestamp \\
+\texttt{telescope} & string & Detecting instrument (Swift, EP, etc.) \\
+\texttt{count\_rate} & number & X-ray count rate (counts/s) \\
+\texttt{flux} & number & Energy flux (erg\,cm$^{-2}$\,s$^{-1}$) \\
+\texttt{snr} & number & Signal-to-noise ratio from alert \\
+\texttt{magnitude} & number & Reported optical magnitude \\
+\texttt{parsed\_at} & timestamp & Server timestamp of ingestion \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{\texttt{observable\_list} Collection}
+
+Same fields as \texttt{grb\_alerts} plus:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Field & Type & Description \\
+\midrule
+\texttt{status} & string & \texttt{pending} / \texttt{observed} / \texttt{skipped} \\
+\texttt{window\_start} & string & ISO 8601 observability window start \\
+\texttt{window\_end} & string & ISO 8601 observability window end \\
+\texttt{site\_lat} & number & Observatory latitude \\
+\texttt{site\_long} & number & Observatory longitude \\
+\texttt{mpc\_code} & string & MPC observatory code \\
+\texttt{recorded\_at} & string & ISO 8601 insertion timestamp \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{\texttt{grb\_captures} Collection}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Field & Type & Description \\
+\midrule
+\texttt{grb\_name} & string & GRB designation \\
+\texttt{ra\_deg} & number & Right Ascension (degrees) \\
+\texttt{dec\_deg} & number & Declination (degrees) \\
+\texttt{error\_arcmin} & number & Positional uncertainty \\
+\texttt{trigger\_time} & string & ISO 8601 GRB trigger time \\
+\texttt{capture\_time} & string & ISO 8601 NINA capture completion time \\
+\texttt{exposure\_count} & number & Number of frames captured \\
+\texttt{exposure\_seconds} & number & Exposure duration per frame \\
+\texttt{fits\_directory} & string & Local path to FITS files \\
+\texttt{status} & string & \texttt{pending\_analysis} / \texttt{analyzed} / \texttt{skipped} \\
+\texttt{light\_curve} & array & Per-frame photometry results (see below) \\
+\texttt{decay\_alpha} & number & Power-law decay index $\alpha$ \\
+\texttt{decay\_alpha\_error} & number & $1\sigma$ uncertainty on $\alpha$ \\
+\texttt{decay\_fit\_note} & string & Fit quality description \\
+\texttt{magnitude\_mean} & number & Mean calibrated magnitude \\
+\texttt{deepest\_upper\_limit} & number & Deepest 3$\sigma$ upper limit \\
+\texttt{dss\_peak\_sigma} & number & DSS source significance at GRB position \\
+\texttt{known\_sources\_in\_field} & number & SIMBAD object count in error radius \\
+\texttt{analyzed\_at} & timestamp & Server timestamp of analysis completion \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Light curve entry fields:}
+\texttt{filename}, \texttt{obs\_time}, \texttt{delta\_t\_hours},
+\texttt{magnitude}, \texttt{mag\_error}, \texttt{snr}, \texttt{upper\_limit},
+\texttt{is\_detection}, \texttt{zero\_point}, \texttt{zp\_scatter},
+\texttt{n\_ref\_stars}, \texttt{note}.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Running Tests}
+
+\subsection{\texttt{test\_analyzer.py} --- End-to-End Test Harness}
+
+Tests the full image analysis pipeline without a telescope or NINA by
+simulating a GRB observation session using real DSS FITS images of the
+Crab Nebula:
+
+\begin{lstlisting}[style=python, caption={Run the test harness}]
+# Terminal 1 - push a simulated capture to Firestore
+cd GCN_parser
+python test_analyzer.py
+
+# Terminal 2 - run the analyzer (picks up within 30s)
+python image_analyzer.py
+\end{lstlisting}
+
+The test harness:
+\begin{itemize}
+    \item Downloads 4 DSS FITS frames of the Crab Nebula via
+          \texttt{astroquery.skyview}.
+    \item Injects \texttt{DATE-OBS} headers at simulated offsets:
+          $+6$, $+9$, $+12$, $+18$ minutes after a synthetic trigger.
+    \item Pushes a \texttt{grb\_captures} document to Firestore with
+          \texttt{status = pending\_analysis}.
+    \item \texttt{image\_analyzer.py} processes it within 30 seconds and
+          writes back the full light curve and decay index.
+\end{itemize}
+
+Expected output from \texttt{image\_analyzer.py}:
+
+\begin{lstlisting}[style=bash]
+[Analyzer] Found 4 FITS file(s) for GRB_TEST_260413
+[Analyzer]   frame_t06min.fits -> DETECTION mag=~16.xx +/- 0.xxx SNR=~xx
+[Analyzer]   frame_t09min.fits -> ...
+[Analyzer]   frame_t12min.fits -> ...
+[Analyzer]   frame_t18min.fits -> ...
+[Analyzer] Power-law decay: alpha = x.xxx +/- x.xxx
+[Analyzer] Done: GRB_TEST_260413 | detections=4 | upper_limits=0 | alpha=x.xxx
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{References}
+
+\begin{enumerate}
+    \item Kumar, H.\ et al.\ (2025). ``Optical follow-up of gamma-ray burst
+          afterglows with the Devasthal Optical Telescope.''
+          \textit{Monthly Notices of the Royal Astronomical Society},
+          544, 1541.
+          DOI: \href{https://doi.org/10.1093/mnras/staf123}{10.1093/mnras/staf123}
+
+    \item Cheng, S.\ et al.\ (2025). ``Optical and near-infrared observations
+          of GRB afterglows: Gaia-calibrated photometry and light-curve
+          analysis.'' \textit{The Astrophysical Journal}, 979, 38.
+          DOI: \href{https://doi.org/10.3847/1538-4357/ad9f12}{10.3847/1538-4357/ad9f12}
+
+    \item Del Vecchio, R.\ et al.\ (2016). ``Probing gamma-ray burst
+          afterglow physics with optical flux-density and spectral-index
+          light curves.'' \textit{The Astrophysical Journal}, 828, 36.
+          DOI: \href{https://doi.org/10.3847/0004-637X/828/1/36}{10.3847/0004-637X/828/1/36}
+\end{enumerate}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\appendix
+\section{Repository Structure}
+
+\begin{verbatim}
+NINA_GRB_Plugin_OpenSource/
+├── GCN_parser/
+│   ├── gmail_listener.py        Gmail watcher for GCN Circulars
+│   ├── parser.py                GPT-4o-mini email parser
+│   ├── firebase_client.py       Firestore write client
+│   ├── image_analyzer.py        Full photometry pipeline (24/7)
+│   ├── test_analyzer.py         End-to-end test harness (DSS/Crab)
+│   ├── nina_launcher.py         Sunset-aware NINA auto-launcher
+│   ├── setup_task_scheduler.ps1 Windows Task Scheduler setup
+│   ├── firebase_service_account.json  Firebase credentials
+│   └── .env                     OPENAI_API_KEY
+│
+├── Demo_2/
+│   ├── Demo2SequenceItems/
+│   │   ├── GRBAlertTrigger.cs            Firestore poller trigger
+│   │   ├── GRBCaptureInstruction.cs      Full slew + capture
+│   │   └── GRBCaptureOnlyInstruction.cs  Camera-only test mode
+│   ├── Services/
+│   │   ├── FirestoreCapturePoster.cs     Firestore REST poster
+│   │   ├── FirestoreGrbListener.cs       Background listener
+│   │   ├── GRBObservatoryStateService.cs Pre-flight checks
+│   │   └── GRBObservabilityService.cs    Alert filter logic
+│   ├── Models/GRBEvent.cs                GRB data model
+│   ├── Options.xaml                      Plugin settings UI
+│   └── Demo_2.csproj
+│
+├── DOCUMENTATION.tex            This document
+└── GRB_alerts/                  Archived GRB alert CSV files
+\end{verbatim}
+
+\end{document}
