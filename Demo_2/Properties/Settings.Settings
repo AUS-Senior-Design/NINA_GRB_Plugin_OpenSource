@@ -68,8 +68,5 @@
     <Setting Name="MaxMoonPhase" Type="System.Double" Scope="User">
       <Value Profile="(Default)">75</Value>
     </Setting>
-    <Setting Name="SirilPath" Type="System.String" Scope="User">
-      <Value Profile="(Default)">C:\Program Files\Siril\bin\siril.exe</Value>
-    </Setting>
   </Settings>
 </SettingsFile>

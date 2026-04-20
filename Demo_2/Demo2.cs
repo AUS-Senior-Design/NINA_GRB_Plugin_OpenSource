@@ -264,11 +264,6 @@ namespace Sd.NINA.Demo2 {
             set { Settings.Default.MaxMoonPhase = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
         }
 
-        public string SirilPath {
-            get => Settings.Default.SirilPath;
-            set { Settings.Default.SirilPath = value; CoreUtil.SaveSettings(Settings.Default); RaisePropertyChanged(); }
-        }
-
         // ── Observatory state settings ────────────────────────────────────────────
 
         public int MaxWaitMinutes {

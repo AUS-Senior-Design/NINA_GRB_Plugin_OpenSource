@@ -299,14 +299,6 @@ namespace Sd.NINA.Demo2.Properties {
             set { this["MaxMoonPhase"] = value; }
         }
 
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute(@"C:\Program Files\Siril\bin\siril.exe")]
-        public string SirilPath {
-            get { return ((string)(this["SirilPath"])); }
-            set { this["SirilPath"] = value; }
-        }
-
         // ── Observatory state settings ────────────────────────────────────────────
 
         [global::System.Configuration.UserScopedSettingAttribute()]

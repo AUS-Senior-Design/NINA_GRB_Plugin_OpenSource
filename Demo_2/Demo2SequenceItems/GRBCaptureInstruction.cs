@@ -16,7 +16,6 @@ using Sd.NINA.Demo2.Services;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -119,7 +118,6 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
                 await SlewAndCenter(grb, progress, token);
 
                 // ── Step 3: Science exposures (count/time/binning from Options) ────
-                DateTime captureStart = DateTime.UtcNow;
                 int    expCount   = Math.Max(1, Settings.Default.ExposureCount);
                 double expSeconds = Math.Max(1.0, Settings.Default.ExposureTime);
                 int    binning    = Math.Max(1, Settings.Default.Binning);
@@ -161,9 +159,6 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
                 await FirestoreCapturePoster.PostCaptureAsync(grb, expCount, (int)expSeconds, imageRoot);
                 GRBObservabilityService.MarkAsObserved(grb.Name);
 
-                // ── Step 5: Open captured images in Siril ─────────────────────────
-                OpenInSiril(grb.Name, captureStart, profileService);
-
                 // ── Step 5: Return to original position ───────────────────────────
                 if (preSlewCoords != null && telescopeMediator.GetInfo().Connected) {
                     progress.Report(new ApplicationStatus { Status = "GRB capture done — returning to original position." });
@@ -177,63 +172,6 @@ namespace Sd.NINA.Demo2.Demo2TestCategory {
             } catch (Exception ex) {
                 Logger.Error($"[GRB Capture] Failed for {grb?.Name}: {ex.Message}");
                 Notification.ShowError($"GRB capture failed: {ex.Message}");
-            }
-        }
-
-        // ── Open in Siril ──────────────────────────────────────────────────────────
-        /// <summary>
-        /// After capture completes, finds all FITS files created since captureStart
-        /// inside NINA's image save directory, then launches Siril pointing at the
-        /// folder that contains them.
-        /// </summary>
-        private void OpenInSiril(string grbName, DateTime captureStart, IProfileService profileService) {
-            try {
-                string sirilExe = Settings.Default.SirilPath?.Trim();
-                if (string.IsNullOrEmpty(sirilExe) || !File.Exists(sirilExe)) {
-                    Logger.Info("[GRB Siril] Siril path not configured or not found — skipping auto-open.");
-                    return;
-                }
-
-                // Root image save directory from the active NINA profile
-                string imageRoot = profileService?.ActiveProfile?.ImageFileSettings?.FilePath
-                    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "N.I.N.A");
-
-                if (!Directory.Exists(imageRoot)) {
-                    Logger.Warning($"[GRB Siril] Image root not found: {imageRoot}");
-                    return;
-                }
-
-                // Find all FITS files created since capture started
-                var fitsFiles = Directory.EnumerateFiles(imageRoot, "*.*", SearchOption.AllDirectories)
-                    .Where(f => (f.EndsWith(".fits", StringComparison.OrdinalIgnoreCase) ||
-                                 f.EndsWith(".fit",  StringComparison.OrdinalIgnoreCase) ||
-                                 f.EndsWith(".fts",  StringComparison.OrdinalIgnoreCase)) &&
-                                File.GetCreationTimeUtc(f) >= captureStart)
-                    .ToList();
-
-                if (fitsFiles.Count == 0) {
-                    Logger.Warning("[GRB Siril] No FITS files found since capture started.");
-                    return;
-                }
-
-                // Use the common parent folder of all captured files as the working dir
-                string workDir = fitsFiles
-                    .Select(f => Path.GetDirectoryName(f))
-                    .GroupBy(d => d)
-                    .OrderByDescending(g => g.Count())
-                    .First().Key;
-
-                Logger.Info($"[GRB Siril] Opening Siril for {grbName} — {fitsFiles.Count} file(s) in {workDir}");
-
-                Process.Start(new ProcessStartInfo {
-                    FileName  = sirilExe,
-                    Arguments = $"-d \"{workDir}\"",
-                    UseShellExecute = true
-                });
-
-                Notification.ShowSuccess($"GRB {grbName}: {fitsFiles.Count} FITS file(s) opened in Siril.");
-            } catch (Exception ex) {
-                Logger.Error($"[GRB Siril] Failed to open Siril: {ex.Message}");
             }
         }
 
