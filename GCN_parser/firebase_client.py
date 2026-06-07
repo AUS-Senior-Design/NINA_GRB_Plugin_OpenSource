@@ -10,14 +10,32 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
+# def get_firestore_client():
+#     if not firebase_admin._apps:
+#         key_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+#         if not key_path:
+#             raise RuntimeError("FIREBASE_SERVICE_ACCOUNT_PATH environment variable not set")
+#         if not os.path.isabs(key_path):
+#             key_path = os.path.join(_DIR, key_path)
+#         cred = credentials.Certificate(key_path)
+#         firebase_admin.initialize_app(cred)
+#     return firestore.client()
+
 def get_firestore_client():
     if not firebase_admin._apps:
-        key_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
-        if not key_path:
-            raise RuntimeError("FIREBASE_SERVICE_ACCOUNT_PATH environment variable not set")
-        if not os.path.isabs(key_path):
-            key_path = os.path.join(_DIR, key_path)
-        cred = credentials.Certificate(key_path)
+        # Option 1: JSON contents stored as env var (for CI/cloud)
+        service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+        if service_account_json:
+            import json
+            cred = credentials.Certificate(json.loads(service_account_json))
+        else:
+            # Option 2: File path (for local development)
+            key_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+            if not key_path:
+                raise RuntimeError("Neither FIREBASE_SERVICE_ACCOUNT nor FIREBASE_SERVICE_ACCOUNT_PATH is set")
+            if not os.path.isabs(key_path):
+                key_path = os.path.join(_DIR, key_path)
+            cred = credentials.Certificate(key_path)
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
