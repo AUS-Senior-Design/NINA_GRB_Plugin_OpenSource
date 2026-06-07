@@ -30,12 +30,12 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("License", "MPL-2.0")]
 // The url to the license
 [assembly: AssemblyMetadata("LicenseURL", "https://www.mozilla.org/en-US/MPL/2.0/")]
-// The repository where your pluggin is hosted
-//[assembly: AssemblyMetadata("Repository", "https://github.com/AUS-Senior-Design/NINA_GRB_Plugin_OpenSource")]
+// The repository where your plugin is hosted
+[assembly: AssemblyMetadata("Repository", "https://github.com/AUS-Senior-Design/NINA_GRB_Plugin_OpenSource")]
 
-// The following attributes are optional for the official manifest meta data
+// The following attributes are optional for the official manifest metadata
 
-//[Optional] Your plugin homepage URL - omit if not applicaple
+//[Optional] Your plugin homepage URL - omit if not applicable
 [assembly: AssemblyMetadata("Homepage", "https://github.com/AUS-Senior-Design/NINA_GRB_Plugin_OpenSource")]
 
 //[Optional] Common tags that quickly describe your plugin
