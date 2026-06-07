@@ -1,0 +1,89 @@
+name: Build and Release NINA GRB Plugin
+
+on:
+  push:
+    tags:
+      - 'v*.*.*.*'   # triggers on tags like v1.0.0.1
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # NINA DLLs are referenced from C:\Program Files\N.I.N.A. on your local
+      # machine but don't exist on the CI runner, so we download NINA here.
+      - name: Download NINA installer and extract DLLs
+        shell: pwsh
+        run: |
+          $ninaUrl = "https://github.com/isbeorn/nina/releases/download/3.0.0.2017/NINA-3.0.0.2017-x64.msi"
+          Invoke-WebRequest -Uri $ninaUrl -OutFile "nina.msi"
+          Start-Process msiexec.exe -ArgumentList '/a nina.msi /qn TARGETDIR=C:\NINA_INSTALL' -Wait
+          # Check what got installed
+          Get-ChildItem "C:\NINA_INSTALL" -Recurse -Filter "NINA.Core.dll" | Select-Object FullName
+
+      - name: Restore dependencies
+        run: dotnet restore Demo_2/Demo_2.csproj
+        # ⚠️ Confirm "Demo_2.csproj" is the exact filename inside the Demo_2 folder
+
+      - name: Build Release
+        shell: pwsh
+        run: |
+          dotnet build Demo_2/Demo_2.csproj `
+            --configuration Release `
+            --no-restore `
+            /p:NINADir="C:\NINA_INSTALL\PFiles\N.I.N.A. - Nighttime Imaging 'N' Astronomy"
+
+      - name: Get version from tag
+        id: get_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $outputDir = Get-ChildItem -Recurse -Filter "Sd.NINA.Demo2.dll" |
+            Where-Object { $_.FullName -like "*Release*" } |
+            Select-Object -First 1 |
+            ForEach-Object { $_.DirectoryName }
+          
+          Write-Host "Output dir: $outputDir"
+          Compress-Archive -Path "$outputDir\*" -DestinationPath "GRB_Helper.$version.zip"
+
+      - name: Clone manifest tools
+        run: git clone https://github.com/isbeorn/nina.plugin.manifests.git manifest-tools
+
+      - name: Generate manifest.json
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $dll = Get-ChildItem -Recurse -Filter "Sd.NINA.Demo2.dll" |
+            Where-Object { $_.FullName -like "*Release*" } |
+            Select-Object -First 1
+          
+          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/GRB_Helper.$version.zip"
+          
+          & "manifest-tools/tools/CreateManifest.ps1" `
+            -file $dll.FullName `
+            -installerUrl $installerUrl `
+            -createArchive `
+            -archiveName "GRB_Helper.$version"
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            GRB_Helper.*.zip
+            manifest.json
+          generate_release_notes: true
