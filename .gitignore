@@ -10,3 +10,7 @@ obj/
 
 # VS files
 .vs/
+.DS_Store
+GRB_alerts/
+plugin2.xml
+pluginclasses.xml
