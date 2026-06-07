@@ -1,0 +1,12 @@
+# Secrets - never commit these
+.env
+*.env
+firebase_service_account.json
+
+# Build outputs
+bin/
+obj/
+*.user
+
+# VS files
+.vs/
