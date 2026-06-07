@@ -21,28 +21,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Download NINA and extract DLLs
-        shell: pwsh
-        run: |
-          $ninaUrl = "https://github.com/isbeorn/nina/releases/download/3.0.0.2017/NINA-3.0.0.2017-x64.msi"
-          Invoke-WebRequest -Uri $ninaUrl -OutFile "nina.msi" -UseBasicParsing
-          New-Item -ItemType Directory -Force -Path "C:\NINA_INSTALL"
-          Start-Process msiexec.exe -ArgumentList '/a nina.msi /qn TARGETDIR=C:\NINA_INSTALL' -Wait
-          $ninaDll = Get-ChildItem "C:\NINA_INSTALL" -Recurse -Filter "NINA.Core.dll" | Select-Object -First 1
-          Write-Host "Found NINA at: $($ninaDll.DirectoryName)"
-          echo "NINA_DIR=$($ninaDll.DirectoryName)" >> $env:GITHUB_ENV
-
       - name: Restore dependencies
-        shell: pwsh
-        run: dotnet restore Demo_2/Demo_2.csproj /p:NINADir="$env:NINA_DIR"
+        run: dotnet restore Demo_2/Demo_2.csproj
 
       - name: Build Release
-        shell: pwsh
-        run: |
-          dotnet build Demo_2/Demo_2.csproj `
-            --configuration Release `
-            --no-restore `
-            /p:NINADir="$env:NINA_DIR"
+        run: dotnet build Demo_2/Demo_2.csproj --configuration Release --no-restore
 
       - name: Get version from tag
         id: get_version
